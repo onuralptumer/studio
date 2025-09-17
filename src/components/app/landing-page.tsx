@@ -9,17 +9,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
 export function LandingPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    if (user) {
-      router.push('/focus');
-    }
-  }, [user, router]);
 
   const handleStartFree = () => {
     router.push('/signup');
@@ -283,3 +276,5 @@ export function LandingPage() {
     </div>
   );
 }
+
+    
