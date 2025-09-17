@@ -74,9 +74,10 @@ export default function FocusFlowApp() {
     return `${mins}:${secs}`;
   };
 
-  const showNudge = useCallback((elapsedTime: number) => {
+  const showNudge = useCallback(() => {
     const sessionDuration = settings.duration * 60;
-    const progress = (elapsedTime / sessionDuration) * 100;
+    const elapsedSeconds = sessionDuration - timeLeft;
+    const progress = (elapsedSeconds / sessionDuration) * 100;
     
     let category: keyof typeof NudgeMessages;
     if (progress < 20) category = 'gentle';
@@ -93,50 +94,50 @@ export default function FocusFlowApp() {
       description: nudge,
       duration: 15000, // Show for 15 seconds
     });
-  }, [toast, settings.duration]);
+  }, [toast, settings.duration, timeLeft]);
 
 
   useEffect(() => {
     let timerId: NodeJS.Timeout;
-    let nudgeIntervalId: NodeJS.Timeout;
 
     if (appState === 'focusing') {
-      const sessionDuration = settings.duration * 60;
-      let elapsedSeconds = sessionDuration - timeLeft;
-
       timerId = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timerId);
-            clearInterval(nudgeIntervalId);
             setAppState('finished');
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
-
-      // Show first nudge immediately
-      showNudge(elapsedSeconds);
-      
-      nudgeIntervalId = setInterval(() => {
-        // We read timeLeft from a state update function to get the latest value inside setInterval
-        setTimeLeft(current_timeLeft => {
-            elapsedSeconds = sessionDuration - current_timeLeft;
-            if(current_timeLeft > 0 && appState === 'focusing'){
-                showNudge(elapsedSeconds);
-            }
-            return current_timeLeft;
-        })
-      }, 120000); // every 2 minutes
-
     }
     
     return () => {
       clearInterval(timerId);
-      clearInterval(nudgeIntervalId);
     };
-  }, [appState, settings.duration, showNudge, timeLeft]);
+  }, [appState]);
+
+  useEffect(() => {
+    let nudgeIntervalId: NodeJS.Timeout | undefined;
+
+    if (appState === 'focusing') {
+      // Show first nudge immediately
+      showNudge();
+      
+      nudgeIntervalId = setInterval(() => {
+        if(appState === 'focusing'){
+            showNudge();
+        }
+      }, 120000); // every 2 minutes
+    }
+    
+    return () => {
+      if (nudgeIntervalId) {
+        clearInterval(nudgeIntervalId);
+      }
+    };
+  }, [appState, showNudge]);
 
   if (!isInitialized) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
