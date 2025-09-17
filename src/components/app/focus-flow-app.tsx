@@ -9,7 +9,6 @@ import { FocusBubble } from '@/components/app/focus-bubble';
 import { useFocusStore } from '@/hooks/use-focus-store';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Repeat } from 'lucide-react';
-import { NudgeMessages } from '@/lib/nudges';
 import { customizeNudgeTone, CustomizeNudgeToneInput } from '@/ai/flows/customize-nudge-tone';
 
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
@@ -60,7 +59,8 @@ export default function FocusFlowApp() {
 
   const scheduleNudges = useCallback(() => {
     const sessionDurationSeconds = settings.duration * 60;
-    const nudgeCount = Math.ceil(settings.duration / 10);
+    const nudgeCount = Math.ceil(settings.duration / 10) || 1;
+
     if (nudgeCount === 0) {
       nudgeTimestamps.current = [];
       return;
@@ -190,7 +190,6 @@ export default function FocusFlowApp() {
               if (
                   isTabVisible &&
                   timeSinceLastInteraction > 30 && // Wait 30s after returning/interaction
-                  timeSinceLastInteraction > 60 && // Anti-spam
                   timeSinceLastNudge > 30 // Ensure nudges aren't too close
               ) {
                   showNudge();
