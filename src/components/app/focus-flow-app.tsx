@@ -74,7 +74,10 @@ export default function FocusFlowApp() {
     return `${mins}:${secs}`;
   };
 
-  const showNudge = useCallback((progress: number) => {
+  const showNudge = useCallback((elapsedTime: number) => {
+    const sessionDuration = settings.duration * 60;
+    const progress = (elapsedTime / sessionDuration) * 100;
+    
     let category: keyof typeof NudgeMessages;
     if (progress < 20) category = 'gentle';
     else if (progress < 40) category = 'motivating';
@@ -88,19 +91,24 @@ export default function FocusFlowApp() {
     toast({
       title: 'A little nudge for you!',
       description: nudge,
+      duration: 15000, // Show for 15 seconds
     });
-  }, [toast]);
+  }, [toast, settings.duration]);
 
 
   useEffect(() => {
     let timerId: NodeJS.Timeout;
-    const timeouts: NodeJS.Timeout[] = [];
+    let nudgeIntervalId: NodeJS.Timeout;
 
     if (appState === 'focusing') {
+      const sessionDuration = settings.duration * 60;
+      let elapsedSeconds = sessionDuration - timeLeft;
+
       timerId = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timerId);
+            clearInterval(nudgeIntervalId);
             setAppState('finished');
             return 0;
           }
@@ -108,22 +116,27 @@ export default function FocusFlowApp() {
         });
       }, 1000);
 
-      const sessionDuration = settings.duration * 60;
-      const nudgeIntervals = [0.2, 0.4, 0.6, 0.8]; // 20%, 40%, 60%, 80%
+      // Show first nudge immediately
+      showNudge(elapsedSeconds);
       
-      nudgeIntervals.forEach(interval => {
-        const nudgeTime = sessionDuration * (1 - interval); // time remaining
-        const elapsed = sessionDuration - nudgeTime;
-        timeouts.push(setTimeout(() => showNudge(interval * 100), elapsed * 1000));
-      });
+      nudgeIntervalId = setInterval(() => {
+        // We read timeLeft from a state update function to get the latest value inside setInterval
+        setTimeLeft(current_timeLeft => {
+            elapsedSeconds = sessionDuration - current_timeLeft;
+            if(current_timeLeft > 0 && appState === 'focusing'){
+                showNudge(elapsedSeconds);
+            }
+            return current_timeLeft;
+        })
+      }, 120000); // every 2 minutes
 
     }
     
     return () => {
       clearInterval(timerId);
-      timeouts.forEach(clearTimeout);
+      clearInterval(nudgeIntervalId);
     };
-  }, [appState, settings.duration, showNudge]);
+  }, [appState, settings.duration, showNudge, timeLeft]);
 
   if (!isInitialized) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
