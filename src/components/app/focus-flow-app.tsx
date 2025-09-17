@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -12,10 +13,14 @@ import { Check, Repeat } from 'lucide-react';
 import { NudgeMessages } from '@/lib/nudges';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { useAuth } from '@/hooks/use-auth';
+import { useRouter } from 'next/navigation';
 
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
 
 export default function FocusFlowApp() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
   const { isInitialized, settings, setSettings, addTask, completeTask, getStats } = useFocusStore();
   const { toast } = useToast();
   
@@ -23,11 +28,15 @@ export default function FocusFlowApp() {
   const [currentTask, setCurrentTask] = useState('');
   const [timeLeft, setTimeLeft] = useState(settings.duration * 60);
 
-  const [isTabVisible, setIsTabVisible] = useState(true);
   const nudgeTimestamps = useRef<number[]>([]);
   const nextNudgeIndex = useRef(0);
   const pauseStartTime = useRef<number | null>(null);
 
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/');
+    }
+  }, [user, loading, router]);
   
   useEffect(() => {
     setTimeLeft(settings.duration * 60);
@@ -37,9 +46,8 @@ export default function FocusFlowApp() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === 'visible';
-      setIsTabVisible(isVisible);
       if (isVisible && appState === 'focusing' && pauseStartTime.current !== null) {
-          // Tab is visible again, adjust nudge timestamps
+          // Tab is visible again, adjust nudge timestamps by the duration the tab was hidden
           const pauseDuration = (Date.now() - pauseStartTime.current) / 1000;
           nudgeTimestamps.current = nudgeTimestamps.current.map(t => t - pauseDuration);
           pauseStartTime.current = null;
@@ -58,9 +66,10 @@ export default function FocusFlowApp() {
 
 
   const scheduleNudges = useCallback(() => {
+    // Total session duration in seconds.
     const sessionDurationSeconds = settings.duration * 60;
     
-    // Nudge count is at least 1, or more for longer sessions.
+    // Nudge count is at least 1, or more for longer sessions (1 per 5 mins).
     const nudgeCount = Math.ceil(settings.duration / 5) || 1;
     
     // Quiet Start: No nudges in the first 25% of the session.
@@ -69,29 +78,31 @@ export default function FocusFlowApp() {
     // Quiet End: No nudges in the last 10% of the session.
     const quietEndSeconds = sessionDurationSeconds * 0.10;
     
-    // The active window is the time between the quiet start and quiet end.
-    const activeNudgeWindowStart = sessionDurationSeconds - quietStartSeconds;
-    const activeNudgeWindowEnd = quietEndSeconds;
-    const activeNudgeWindowDuration = activeNudgeWindowStart - activeNudgeWindowEnd;
+    // The "active" window is the time available for sending nudges.
+    const activeNudgeWindowDuration = sessionDurationSeconds - quietStartSeconds - quietEndSeconds;
     
-    // If the active window is too short, don't schedule any nudges.
+    // If the window is too short, no nudges will be scheduled.
     if (activeNudgeWindowDuration < 1) {
         nudgeTimestamps.current = [];
         nextNudgeIndex.current = 0;
         return;
     }
 
-    // We add 1 to nudgeCount to create even intervals between nudges.
+    // To create evenly-spaced nudges, we divide the active window into segments.
+    // Adding 1 to nudgeCount ensures the intervals are between the nudges.
     const intervalBetweenNudges = activeNudgeWindowDuration / (nudgeCount + 1);
     
     const timestamps: number[] = [];
     for (let i = 1; i <= nudgeCount; i++) {
-        // Calculate the time for each nudge, starting from the end of the quiet start period.
-        const nudgeTime = activeNudgeWindowStart - (i * intervalBetweenNudges);
-        timestamps.push(Math.floor(nudgeTime));
+        // Calculate the time for each nudge. We start from the beginning of the active window
+        // and add the interval for each subsequent nudge.
+        const nudgeTimeFromStart = quietStartSeconds + (i * intervalBetweenNudges);
+        
+        // Timestamps are stored as "time left", so we subtract from the total duration.
+        timestamps.push(Math.floor(sessionDurationSeconds - nudgeTimeFromStart));
     }
 
-    // Sort timestamps in descending order, so we can pop them from the end.
+    // Sort timestamps in descending order, so it's easy to check the next one.
     nudgeTimestamps.current = timestamps.sort((a,b) => b-a);
     nextNudgeIndex.current = 0;
   }, [settings.duration]);
@@ -179,36 +190,39 @@ export default function FocusFlowApp() {
     }
 
     const timerId = setInterval(() => {
+        let newTimeLeft = 0;
         setTimeLeft(prevTimeLeft => {
-            const newTimeLeft = prevTimeLeft - 1;
+            newTimeLeft = prevTimeLeft - 1;
 
             if (newTimeLeft <= 0) {
                 clearInterval(timerId);
                 setAppState('finished');
                 return 0;
             }
-
-            // Check for nudges
-            const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
-            if (
-                nextNudgeTime !== undefined &&
-                newTimeLeft <= nextNudgeTime &&
-                isTabVisible
-            ) {
-                showNudge();
-            }
-
             return newTimeLeft;
         });
+
+        // Check for nudges
+        const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
+        const isVisible = document.visibilityState === 'visible';
+        
+        if (
+            nextNudgeTime !== undefined &&
+            newTimeLeft <= nextNudgeTime &&
+            isVisible
+        ) {
+            showNudge();
+        }
+
     }, 1000);
 
     return () => {
         clearInterval(timerId);
     };
-}, [appState, showNudge, isTabVisible]);
+}, [appState, showNudge]);
 
 
-  if (!isInitialized) {
+  if (loading || !isInitialized || !user) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 

@@ -1,11 +1,28 @@
+
+'use client';
+
 import { Logo } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Check, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/use-auth';
+import { useRouter } from 'next/navigation';
 
 export function LandingPage() {
+  const { user, loading, signInWithGoogle } = useAuth();
+  const router = useRouter();
+
+  const handleAuthAction = async () => {
+    if (user) {
+      router.push('/focus');
+    } else {
+      await signInWithGoogle();
+      router.push('/focus');
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -18,12 +35,22 @@ export function LandingPage() {
             </span>
           </Link>
           <nav className="flex items-center gap-2">
-            <Button variant="ghost" asChild>
-              <Link href="/focus">Log In</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/focus">Start Free</Link>
-            </Button>
+            {!loading && (
+              <>
+                {user ? (
+                  <Button asChild>
+                    <Link href="/focus">Go to App</Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="ghost" onClick={signInWithGoogle}>
+                      Log In
+                    </Button>
+                    <Button onClick={handleAuthAction}>Start Free</Button>
+                  </>
+                )}
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -38,8 +65,8 @@ export function LandingPage() {
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
             Stay productive without the overwhelm — just one task at a time.
           </p>
-          <Button size="lg" className="mt-8 text-lg" asChild>
-            <Link href="/focus">Start Free</Link>
+          <Button size="lg" className="mt-8 text-lg" onClick={handleAuthAction} disabled={loading}>
+            {user ? 'Start Focusing' : 'Start Free'}
           </Button>
           <div className="mt-12 w-full max-w-4xl">
             <Card className="overflow-hidden shadow-2xl">
@@ -225,8 +252,8 @@ export function LandingPage() {
             <p className="mt-3 max-w-md text-lg text-muted-foreground">
               Start your first task today.
             </p>
-            <Button size="lg" className="mt-8 text-lg" asChild>
-                <Link href="/focus">Try Free Now</Link>
+            <Button size="lg" className="mt-8 text-lg" onClick={handleAuthAction} disabled={loading}>
+                {user ? 'Try Free Now' : 'Try Free Now'}
             </Button>
           </div>
         </section>
