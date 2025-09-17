@@ -18,6 +18,10 @@ export const useFocusStore = () => {
     dispatch({ type: 'COMPLETE_TASK', payload: taskId });
   };
 
+  const removeTask = (taskId: string) => {
+    dispatch({ type: 'REMOVE_TASK', payload: taskId });
+  };
+
   const setSettings = (settings: { duration: number; sound: boolean }) => {
     dispatch({ type: 'SET_SETTINGS', payload: settings });
   };
@@ -40,6 +44,7 @@ export const useFocusStore = () => {
     settings: state.settings,
     addTask,
     completeTask,
+    removeTask,
     setSettings,
     getStats,
   };

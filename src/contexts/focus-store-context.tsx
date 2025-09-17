@@ -29,6 +29,7 @@ type Action =
   | { type: 'ADD_TASK'; payload: Task }
   | { type: 'COMPLETE_TASK'; payload: string } // id of the task
   | { type: 'SET_SETTINGS'; payload: Settings }
+  | { type: 'REMOVE_TASK'; payload: string } // id of the task
   | { type: 'REHYDRATE'; payload: FocusState };
 
 const initialState: FocusState = {
@@ -80,6 +81,11 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
     }
     case 'SET_SETTINGS':
       return { ...state, settings: action.payload };
+    case 'REMOVE_TASK':
+      return {
+        ...state,
+        tasks: state.tasks.filter(task => task.id !== action.payload),
+      };
     case 'REHYDRATE':
       return action.payload;
     default:
