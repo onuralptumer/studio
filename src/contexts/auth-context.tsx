@@ -2,14 +2,21 @@
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { onAuthStateChanged, User, signOut as firebaseSignOut, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  User,
+  signOut as firebaseSignOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signUp: typeof createUserWithEmailAndPassword;
+  signIn: typeof signInWithEmailAndPassword;
   signOut: () => Promise<void>;
 };
 
@@ -26,20 +33,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       if (user) {
         router.push('/focus');
+      } else {
+        // If there's no user and we are on a protected route, redirect to login.
+        // This is a simplified check.
+        if (window.location.pathname === '/focus') {
+          router.push('/login');
+        }
       }
     });
 
     return () => unsubscribe();
   }, [router]);
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Error signing in with Google: ", error);
-    }
-  };
+  const signUp = (email, password) => {
+    return createUserWithEmailAndPassword(auth, email, password);
+  }
+
+  const signIn = (email, password) => {
+    return signInWithEmailAndPassword(auth, email, password);
+  }
 
   const signOut = async () => {
     try {
@@ -51,7 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

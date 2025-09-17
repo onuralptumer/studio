@@ -26,23 +26,18 @@ export default function FocusFlowApp() {
   
   const [appState, setAppState] = useState<AppState>('idle');
   const [currentTask, setCurrentTask] = useState('');
-  const [timeLeft, setTimeLeft] = useState(settings.duration * 60);
+  const [timeLeft, setTimeLeft] = useState(0);
 
   const nudgeTimestamps = useRef<number[]>([]);
   const nextNudgeIndex = useRef(0);
   const pauseStartTime = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/');
+    if (isInitialized) {
+      setTimeLeft(settings.duration * 60);
     }
-  }, [user, loading, router]);
+  }, [settings.duration, isInitialized]);
   
-  useEffect(() => {
-    setTimeLeft(settings.duration * 60);
-  }, [settings.duration]);
-
-
   useEffect(() => {
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === 'visible';

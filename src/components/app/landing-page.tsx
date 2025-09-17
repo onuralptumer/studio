@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export function LandingPage() {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -21,13 +21,8 @@ export function LandingPage() {
     }
   }, [user, router]);
 
-  const handleAuthAction = async () => {
-    if (user) {
-      router.push('/focus');
-    } else {
-      await signInWithGoogle();
-      // The redirect will be handled by the AuthProvider's onAuthStateChanged effect
-    }
+  const handleStartFree = () => {
+    router.push('/signup');
   };
 
   return (
@@ -50,10 +45,10 @@ export function LandingPage() {
                   </Button>
                 ) : (
                   <>
-                    <Button variant="ghost" onClick={signInWithGoogle}>
-                      Log In
+                    <Button variant="ghost" asChild>
+                      <Link href="/login">Log In</Link>
                     </Button>
-                    <Button onClick={handleAuthAction}>Start Free</Button>
+                    <Button onClick={handleStartFree}>Start Free</Button>
                   </>
                 )}
               </>
@@ -72,8 +67,8 @@ export function LandingPage() {
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
             Stay productive without the overwhelm — just one task at a time.
           </p>
-          <Button size="lg" className="mt-8 text-lg" onClick={handleAuthAction} disabled={loading}>
-            {user ? 'Start Focusing' : 'Start Free'}
+          <Button size="lg" className="mt-8 text-lg" onClick={handleStartFree} disabled={loading}>
+            Start Free
           </Button>
           <div className="mt-12 w-full max-w-4xl">
             <Card className="overflow-hidden shadow-2xl">
@@ -259,8 +254,8 @@ export function LandingPage() {
             <p className="mt-3 max-w-md text-lg text-muted-foreground">
               Start your first task today.
             </p>
-            <Button size="lg" className="mt-8 text-lg" onClick={handleAuthAction} disabled={loading}>
-                {user ? 'Try Free Now' : 'Try Free Now'}
+            <Button size="lg" className="mt-8 text-lg" onClick={handleStartFree} disabled={loading}>
+                Try Free Now
             </Button>
           </div>
         </section>
