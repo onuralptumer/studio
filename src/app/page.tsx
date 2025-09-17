@@ -1,10 +1,5 @@
-import FocusFlowApp from '@/components/app/focus-flow-app';
-import { FocusStoreProvider } from '@/contexts/focus-store-context';
+import { LandingPage } from '@/components/app/landing-page';
 
 export default function Home() {
-  return (
-    <FocusStoreProvider>
-      <FocusFlowApp />
-    </FocusStoreProvider>
-  );
+  return <LandingPage />;
 }

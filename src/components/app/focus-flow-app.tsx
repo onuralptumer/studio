@@ -26,6 +26,8 @@ export default function FocusFlowApp() {
   const [isTabVisible, setIsTabVisible] = useState(true);
   const nudgeTimestamps = useRef<number[]>([]);
   const nextNudgeIndex = useRef(0);
+  const pauseStartTime = useRef<number | null>(null);
+
   
   useEffect(() => {
     setTimeLeft(settings.duration * 60);
@@ -36,6 +38,15 @@ export default function FocusFlowApp() {
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === 'visible';
       setIsTabVisible(isVisible);
+      if (isVisible && appState === 'focusing' && pauseStartTime.current !== null) {
+          // Tab is visible again, adjust nudge timestamps
+          const pauseDuration = (Date.now() - pauseStartTime.current) / 1000;
+          nudgeTimestamps.current = nudgeTimestamps.current.map(t => t - pauseDuration);
+          pauseStartTime.current = null;
+      } else if (!isVisible && appState === 'focusing') {
+          // Tab is hidden, record pause start time
+          pauseStartTime.current = Date.now();
+      }
     };
 
     window.addEventListener('visibilitychange', handleVisibilityChange);
@@ -43,14 +54,14 @@ export default function FocusFlowApp() {
     return () => {
       window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [appState]);
 
 
   const scheduleNudges = useCallback(() => {
     const sessionDurationSeconds = settings.duration * 60;
     
     // Nudge count is at least 1, or more for longer sessions.
-    const nudgeCount = Math.ceil(settings.duration / 10) || 1;
+    const nudgeCount = Math.ceil(settings.duration / 5) || 1;
     
     // Quiet Start: No nudges in the first 25% of the session.
     const quietStartSeconds = sessionDurationSeconds * 0.25;
@@ -63,6 +74,7 @@ export default function FocusFlowApp() {
     const activeNudgeWindowEnd = quietEndSeconds;
     const activeNudgeWindowDuration = activeNudgeWindowStart - activeNudgeWindowEnd;
     
+    // If the active window is too short, don't schedule any nudges.
     if (activeNudgeWindowDuration < 1) {
         nudgeTimestamps.current = [];
         nextNudgeIndex.current = 0;
@@ -162,34 +174,38 @@ export default function FocusFlowApp() {
 
 
   useEffect(() => {
-    let timerId: NodeJS.Timeout;
-
-    if (appState === 'focusing') {
-      timerId = setInterval(() => {
-        const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
-        
-        if (
-          nextNudgeTime &&
-          timeLeft <= nextNudgeTime &&
-          isTabVisible
-        ) {
-          showNudge();
-        }
-
-        if (timeLeft <= 1) {
-          clearInterval(timerId);
-          setAppState('finished');
-          setTimeLeft(0);
-        } else {
-          setTimeLeft(prevTimeLeft => prevTimeLeft - 1);
-        }
-      }, 1000);
+    if (appState !== 'focusing') {
+        return;
     }
-    
+
+    const timerId = setInterval(() => {
+        setTimeLeft(prevTimeLeft => {
+            const newTimeLeft = prevTimeLeft - 1;
+
+            if (newTimeLeft <= 0) {
+                clearInterval(timerId);
+                setAppState('finished');
+                return 0;
+            }
+
+            // Check for nudges
+            const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
+            if (
+                nextNudgeTime !== undefined &&
+                newTimeLeft <= nextNudgeTime &&
+                isTabVisible
+            ) {
+                showNudge();
+            }
+
+            return newTimeLeft;
+        });
+    }, 1000);
+
     return () => {
-      clearInterval(timerId);
+        clearInterval(timerId);
     };
-  }, [appState, showNudge, isTabVisible, timeLeft]);
+}, [appState, showNudge, isTabVisible]);
 
 
   if (!isInitialized) {
