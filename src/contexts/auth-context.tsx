@@ -32,32 +32,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-      if (user) {
-        router.push('/focus');
+    let unsubscribe: (() => void) | undefined;
+    let isMounted = true;
+
+    const handleAuth = async () => {
+      try {
+        // First, process the redirect result. This will populate the session.
+        const result = await getRedirectResult(auth);
+        // If the user signed in via redirect, the user object will be in the result.
+        // onAuthStateChanged will then fire with the correct user.
+      } catch (error) {
+        console.error("Error processing redirect result:", error);
       }
-    });
 
-    // Handle the redirect result from Google Sign-In.
-    getRedirectResult(auth)
-      .catch((error) => {
-        // Handle Errors here.
-        console.error("Error getting redirect result: ", error);
+      // Now, set up the listener. It will fire with the user from the redirect
+      // or the existing session.
+      unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+        if (isMounted) {
+          setUser(fbUser);
+          if (fbUser) {
+            // User is logged in, navigate them to the main app.
+            // Using replace so they don't get stuck in a login loop on back button.
+            router.replace('/focus');
+          }
+          setLoading(false);
+        }
       });
+    };
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
-  }, [router]);
+    handleAuth();
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+    // This effect should only run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const signUp = (email, password) => {
     return createUserWithEmailAndPassword(auth, email, password);
-  }
+  };
 
   const signIn = (email, password) => {
     return signInWithEmailAndPassword(auth, email, password);
-  }
+  };
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
@@ -67,6 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
+      // After signing out, redirect to the homepage.
       router.push('/');
     } catch (error) {
       console.error("Error signing out: ", error);
