@@ -6,6 +6,7 @@ import { History, Settings } from 'lucide-react';
 import { Logo } from '@/components/icons';
 import { SettingsDialog } from './settings-dialog';
 import { RecapSheet } from './recap-sheet';
+import Link from 'next/link';
 
 export function AppHeader() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -14,12 +15,12 @@ export function AppHeader() {
   return (
     <>
       <header className="p-4 flex justify-between items-center">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <Logo className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-bold font-headline text-foreground">
             InTheFlow
           </h1>
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
