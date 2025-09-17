@@ -9,17 +9,24 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export function LandingPage() {
   const { user, loading, signInWithGoogle } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (user) {
+      router.push('/focus');
+    }
+  }, [user, router]);
 
   const handleAuthAction = async () => {
     if (user) {
       router.push('/focus');
     } else {
       await signInWithGoogle();
-      router.push('/focus');
+      // The redirect will be handled by the AuthProvider's onAuthStateChanged effect
     }
   };
 
