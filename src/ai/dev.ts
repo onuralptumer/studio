@@ -1,5 +1,6 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/generate-motivational-nudges.ts';
+// Flows are no longer used in this version of the app.
+// import '@/ai/flows/generate-motivational-nudges.ts';
 import '@/ai/flows/customize-nudge-tone.ts';
