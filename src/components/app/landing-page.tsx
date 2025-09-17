@@ -97,33 +97,34 @@ export function LandingPage() {
                 </p>
               </div>
             </div>
-            <div className="mt-12 grid gap-8 md:grid-cols-3">
-                 <div className="flex items-start gap-4">
+
+            <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              <div className="flex flex-col items-center text-center">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary flex-shrink-0">
                   <Check className="h-5 w-5" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold">One Task Only</h3>
-                  <p className="mt-1 text-muted-foreground">Eliminate distractions by focusing on a single objective.</p>
-                </div>
+                <h3 className="mt-4 text-lg font-semibold">One Task Only</h3>
+                <p className="mt-2 text-muted-foreground">
+                  Eliminate distractions by focusing on a single objective.
+                </p>
               </div>
-              <div className="flex items-start gap-4">
+              <div className="flex flex-col items-center text-center">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary flex-shrink-0">
                   <Check className="h-5 w-5" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Gentle Nudges</h3>
-                  <p className="mt-1 text-muted-foreground">Supportive prompts to keep you on track without adding stress.</p>
-                </div>
+                <h3 className="mt-4 text-lg font-semibold">Gentle Nudges</h3>
+                <p className="mt-2 text-muted-foreground">
+                  Supportive prompts to keep you on track without adding stress.
+                </p>
               </div>
-              <div className="flex items-start gap-4">
+              <div className="flex flex-col items-center text-center">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary flex-shrink-0">
                   <Check className="h-5 w-5" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold">End-of-Day Recap</h3>
-                  <p className="mt-1 text-muted-foreground">Review your accomplishments and build momentum.</p>
-                </div>
+                <h3 className="mt-4 text-lg font-semibold">End-of-Day Recap</h3>
+                <p className="mt-2 text-muted-foreground">
+                  Review your accomplishments and build momentum.
+                </p>
               </div>
             </div>
           </div>
@@ -201,6 +202,20 @@ export function LandingPage() {
           </div>
         </section>
 
+        {/* Social Proof Section */}
+        <section className="py-20 md:py-24">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="mx-auto max-w-3xl text-center">
+              <blockquote className="text-2xl font-semibold italic text-foreground">
+                “Finally get through my day without the chaos of endless to-do lists. I just type one thing, start the timer, and it feels doable. The gentle nudges keep me steady, and the recap shows me I’m actually making progress.”
+              </blockquote>
+              <footer className="mt-4">
+                <p className="text-base font-medium text-primary">— Betty</p>
+              </footer>
+            </div>
+          </div>
+        </section>        
+
         {/* Closing CTA */}
         <section className="bg-primary/5 py-20 md:py-24">
           <div className="container mx-auto flex flex-col items-center px-4 text-center md:px-6">
@@ -227,7 +242,7 @@ export function LandingPage() {
             </p>
           </div>
           <div className="flex gap-4">
-             <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
+             <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground">
               Privacy
             </Link>
             <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
