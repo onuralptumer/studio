@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useReducer, useEffect, useState, ReactNode } from 'react';
-import { NudgeTone } from '@/components/app/focus-flow-app';
 import { format, isToday, isYesterday, differenceInCalendarDays, parseISO } from 'date-fns';
 
 const LOCAL_STORAGE_KEY = 'inTheFlowStore';
@@ -16,7 +15,6 @@ export type Task = {
 
 type Settings = {
   duration: number;
-  tone: NudgeTone;
   sound: boolean;
 };
 
@@ -39,7 +37,6 @@ const initialState: FocusState = {
   lastCompletedDate: null,
   settings: {
     duration: 1,
-    tone: 'calm',
     sound: false,
   },
 };

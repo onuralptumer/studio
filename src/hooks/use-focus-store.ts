@@ -2,7 +2,6 @@
 
 import { useContext } from 'react';
 import { FocusStoreContext, Task } from '@/contexts/focus-store-context';
-import type { NudgeTone } from '@/components/app/focus-flow-app';
 
 export const useFocusStore = () => {
   const context = useContext(FocusStoreContext);
@@ -19,7 +18,7 @@ export const useFocusStore = () => {
     dispatch({ type: 'COMPLETE_TASK', payload: taskId });
   };
 
-  const setSettings = (settings: { duration: number; tone: NudgeTone; sound: boolean }) => {
+  const setSettings = (settings: { duration: number; sound: boolean }) => {
     dispatch({ type: 'SET_SETTINGS', payload: settings });
   };
   
