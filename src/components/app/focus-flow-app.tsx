@@ -59,7 +59,7 @@ export default function FocusFlowApp() {
 
   const scheduleNudges = useCallback(() => {
     const sessionDurationSeconds = settings.duration * 60;
-    const nudgeCount = Math.floor(settings.duration / 10);
+    const nudgeCount = Math.floor(settings.duration / 5) || 1;
     if (nudgeCount === 0) {
       nudgeTimestamps.current = [];
       return;

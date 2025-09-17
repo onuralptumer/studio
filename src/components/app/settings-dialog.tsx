@@ -55,9 +55,9 @@ export function SettingsDialog({
             </Label>
             <Slider
               id="duration"
-              min={10}
+              min={1}
               max={60}
-              step={5}
+              step={1}
               value={[settings.duration]}
               onValueChange={handleDurationChange}
             />

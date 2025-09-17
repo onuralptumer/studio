@@ -38,7 +38,7 @@ const initialState: FocusState = {
   streak: 0,
   lastCompletedDate: null,
   settings: {
-    duration: 25,
+    duration: 1,
     tone: 'calm',
     sound: false,
   },
