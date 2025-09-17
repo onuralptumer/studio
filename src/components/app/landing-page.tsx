@@ -245,7 +245,7 @@ export function LandingPage() {
              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground">
               Privacy
             </Link>
-            <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground">
               Terms
             </Link>
           </div>
