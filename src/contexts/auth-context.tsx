@@ -32,32 +32,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-      if (user) {
-        router.push('/focus');
-      }
-    });
-
-    // Handle redirect result
+    // First, handle the redirect result from Google Sign-In.
     getRedirectResult(auth)
       .then((result) => {
         if (result) {
-          // This is the signed-in user
-          const user = result.user;
-          setUser(user);
+          // A user has successfully signed in via redirect.
+          // The onAuthStateChanged listener below will handle setting the user and redirecting.
+          // We don't need to explicitly setUser here, as onAuthStateChanged will fire.
         }
       })
       .catch((error) => {
+        // Handle Errors here.
         console.error("Error getting redirect result: ", error);
       })
       .finally(() => {
-        setLoading(false);
+        // After processing the redirect, set up the auth state listener.
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          setUser(user);
+          setLoading(false);
+          if (user) {
+            router.push('/focus');
+          }
+        });
+
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
       });
-
-
-    return () => unsubscribe();
   }, [router]);
 
   const signUp = (email, password) => {
