@@ -10,6 +10,7 @@ import { useFocusStore } from '@/hooks/use-focus-store';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Repeat } from 'lucide-react';
 import { NudgeMessages } from '@/lib/nudges';
+import { customizeNudgeTone, CustomizeNudgeToneInput } from '@/ai/flows/customize-nudge-tone';
 
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
 export type NudgeTone = 'calm' | 'fun' | 'firm';
@@ -59,7 +60,7 @@ export default function FocusFlowApp() {
 
   const scheduleNudges = useCallback(() => {
     const sessionDurationSeconds = settings.duration * 60;
-    const nudgeCount = Math.floor(settings.duration / 5) || 1;
+    const nudgeCount = Math.ceil(settings.duration / 10);
     if (nudgeCount === 0) {
       nudgeTimestamps.current = [];
       return;
@@ -68,6 +69,12 @@ export default function FocusFlowApp() {
     const quietStartSeconds = sessionDurationSeconds * 0.25;
     const quietEndSeconds = sessionDurationSeconds * 0.90;
     const activeNudgeWindow = quietEndSeconds - quietStartSeconds;
+    
+    if (activeNudgeWindow <= 0) {
+      nudgeTimestamps.current = [];
+      return;
+    }
+    
     const intervalBetweenNudges = activeNudgeWindow / (nudgeCount + 1);
 
     const timestamps: number[] = [];
@@ -130,29 +137,35 @@ export default function FocusFlowApp() {
     return `${mins}:${secs}`;
   };
 
-  const showNudge = useCallback(() => {
+  const showNudge = useCallback(async () => {
     const sessionDuration = settings.duration * 60;
     const elapsedSeconds = sessionDuration - timeLeft;
-    const progress = (elapsedSeconds / sessionDuration) * 100;
     
-    let category: keyof typeof NudgeMessages;
-    if (progress < 20) category = 'gentle';
-    else if (progress < 40) category = 'motivating';
-    else if (progress < 60) category = 'playful';
-    else if (progress < 80) category = 'mindful';
-    else category = 'reward';
+    const input: CustomizeNudgeToneInput = {
+      task: currentTask,
+      tone: settings.tone,
+      elapsedTime: Math.floor(elapsedSeconds / 60)
+    };
     
-    const messages = NudgeMessages[category];
-    const nudge = messages[Math.floor(Math.random() * messages.length)];
+    try {
+      const { nudge } = await customizeNudgeTone(input);
+      toast({
+        title: 'A little nudge for you!',
+        description: nudge,
+        duration: 15000,
+      });
+    } catch (error) {
+      console.error('Error generating nudge:', error);
+      toast({
+        title: 'Nudge Error',
+        description: 'Could not generate a custom nudge at this time.',
+        variant: 'destructive',
+      });
+    }
 
-    toast({
-      title: 'A little nudge for you!',
-      description: nudge,
-      duration: 15000, // Show for 15 seconds
-    });
     lastNudgeShownTime.current = timeLeft;
     nextNudgeIndex.current += 1;
-  }, [toast, settings.duration, timeLeft]);
+  }, [toast, settings.tone, timeLeft, currentTask]);
 
 
   useEffect(() => {
@@ -177,7 +190,7 @@ export default function FocusFlowApp() {
               if (
                   isTabVisible &&
                   timeSinceLastInteraction > 30 && // Wait 30s after returning/interaction
-                  timeSinceLastInteraction > 90 && // Anti-spam
+                  timeSinceLastInteraction > 60 && // Anti-spam
                   timeSinceLastNudge > 30 // Ensure nudges aren't too close
               ) {
                   showNudge();
