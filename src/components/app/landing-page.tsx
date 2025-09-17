@@ -15,7 +15,11 @@ export function LandingPage() {
   const router = useRouter();
 
   const handleStartFree = () => {
-    router.push('/signup');
+    if (user) {
+      router.push('/focus');
+    } else {
+      router.push('/signup');
+    }
   };
 
   return (
