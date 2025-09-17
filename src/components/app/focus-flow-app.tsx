@@ -9,7 +9,7 @@ import { FocusBubble } from '@/components/app/focus-bubble';
 import { useFocusStore } from '@/hooks/use-focus-store';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Repeat } from 'lucide-react';
-import { customizeNudgeTone, CustomizeNudgeToneInput } from '@/ai/flows/customize-nudge-tone';
+import { NudgeMessages } from '@/lib/nudges';
 
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
 export type NudgeTone = 'calm' | 'fun' | 'firm';
@@ -22,21 +22,18 @@ export default function FocusFlowApp() {
   const [currentTask, setCurrentTask] = useState('');
   const [timeLeft, setTimeLeft] = useState(settings.duration * 60);
 
-  // State for the smart nudge system
   const [isTabVisible, setIsTabVisible] = useState(true);
-  const nudgeTimestamps = useRef<number[]>([]); // Stores the calculated `timeLeft` values when a nudge should trigger.
-  const nextNudgeIndex = useRef(0); // Points to the next nudge to be shown in the timestamps array.
-  const lastInteractionTime = useRef(Date.now()); // Tracks user activity to delay nudges after returning to the tab.
+  const nudgeTimestamps = useRef<number[]>([]);
+  const nextNudgeIndex = useRef(0);
+  const lastInteractionTime = useRef(Date.now());
 
 
   useEffect(() => {
-    // 1. Initialize timeLeft when the component mounts or when the session duration setting changes.
     setTimeLeft(settings.duration * 60);
   }, [settings.duration]);
 
 
   useEffect(() => {
-    // 2. Add event listeners to track user interaction and tab visibility.
     const updateUserInteraction = () => {
       lastInteractionTime.current = Date.now();
     };
@@ -44,7 +41,7 @@ export default function FocusFlowApp() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         setIsTabVisible(true);
-        updateUserInteraction(); // Treat returning to the tab as a new interaction.
+        updateUserInteraction();
       } else {
         setIsTabVisible(false);
       }
@@ -63,29 +60,17 @@ export default function FocusFlowApp() {
 
 
   const scheduleNudges = useCallback(() => {
-    // 3. Calculate and schedule all nudge timestamps for the entire session.
     const sessionDurationSeconds = settings.duration * 60;
     
-    // Nudge Guard Rails:
-    // a. Calculate the number of nudges. At least 1 for any session.
     const nudgeCount = Math.ceil(settings.duration / 10) || 1;
     
-    // b. Define the "quiet" periods where no nudges should appear.
-    const quietStartSeconds = sessionDurationSeconds * 0.25; // No nudges in the first 25%
-    const quietEndSeconds = sessionDurationSeconds * 0.10;   // No nudges in the last 10%
+    const quietStartSeconds = sessionDurationSeconds * 0.25;
+    const quietEndSeconds = sessionDurationSeconds * 0.10;
     
-    // c. Define the "active" window where nudges are allowed.
-    const activeNudgeWindowStart = sessionDurationSeconds - quietStartSeconds; // TimeLeft value when the active window starts.
-    const activeNudgeWindowEnd = quietEndSeconds; // TimeLeft value when the active window ends.
+    const activeNudgeWindowStart = sessionDurationSeconds - quietStartSeconds;
+    const activeNudgeWindowEnd = quietEndSeconds;
     const activeNudgeWindowDuration = activeNudgeWindowStart - activeNudgeWindowEnd;
-
-    // If the active window is too short, don't schedule any nudges.
-    if (activeNudgeWindowDuration <= 0) {
-      nudgeTimestamps.current = [];
-      return;
-    }
     
-    // d. Space the nudges out evenly within the active window.
     const intervalBetweenNudges = activeNudgeWindowDuration / (nudgeCount + 1);
     
     const timestamps: number[] = [];
@@ -94,9 +79,8 @@ export default function FocusFlowApp() {
         timestamps.push(Math.floor(nudgeTime));
     }
 
-    // Store timestamps in descending order of `timeLeft` so we can easily find the next one.
     nudgeTimestamps.current = timestamps.sort((a,b) => b-a);
-    nextNudgeIndex.current = 0; // Reset to the first scheduled nudge.
+    nextNudgeIndex.current = 0;
   }, [settings.duration]);
 
   const startTimer = () => {
@@ -109,7 +93,7 @@ export default function FocusFlowApp() {
       return;
     }
     setAppState('focusing');
-    scheduleNudges(); // Calculate nudge schedule right before starting.
+    scheduleNudges();
     lastInteractionTime.current = Date.now();
     addTask({
       id: Date.now().toString(),
@@ -150,40 +134,41 @@ export default function FocusFlowApp() {
   };
 
   const showNudge = useCallback(async () => {
-    // 5. This function fetches and displays the nudge toast.
     const sessionDuration = settings.duration * 60;
     const elapsedSeconds = sessionDuration - timeLeft;
-    
-    const input: CustomizeNudgeToneInput = {
-      task: currentTask,
-      tone: settings.tone,
-      elapsedTime: Math.floor(elapsedSeconds / 60)
-    };
-    
-    try {
-      const { nudge } = await customizeNudgeTone(input);
-      toast({
-        title: 'A little nudge for you!',
-        description: nudge,
-        duration: 15000,
-      });
-    } catch (error) {
-      console.error('Error generating nudge:', error);
+    const progress = (elapsedSeconds / sessionDuration) * 100;
+
+    let messageCategory: 'gentle' | 'motivating' | 'playful';
+
+    if (progress < 50) {
+      messageCategory = 'gentle';
+    } else if (progress >= 50 && progress < 75) {
+      messageCategory = 'motivating';
+    } else if (progress >= 75 && progress < 90) {
+      messageCategory = 'playful';
+    } else {
+      return; // No nudges in the last 10%
     }
     
-    // Move to the next scheduled nudge.
+    const messages = NudgeMessages[messageCategory];
+    const nudge = messages[Math.floor(Math.random() * messages.length)];
+    
+    toast({
+      title: 'A little nudge for you!',
+      description: nudge,
+      duration: 15000,
+    });
+    
     nextNudgeIndex.current += 1;
-  }, [toast, settings.tone, timeLeft, currentTask]);
+  }, [toast, settings.duration, timeLeft]);
 
 
   useEffect(() => {
-    // 4. This is the main timer that ticks every second.
     let timerId: NodeJS.Timeout;
 
     if (appState === 'focusing') {
       timerId = setInterval(() => {
         setTimeLeft(prevTimeLeft => {
-          // Stop the timer if time runs out.
           if (prevTimeLeft <= 1) {
             clearInterval(timerId);
             setAppState('finished');
@@ -191,17 +176,14 @@ export default function FocusFlowApp() {
           }
           const newTimeLeft = prevTimeLeft - 1;
 
-          // Nudge Triggering Logic:
           const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
-          // Check if there is a next nudge scheduled and if we have reached its time.
           if (nextNudgeTime && newTimeLeft <= nextNudgeTime) {
               const timeSinceLastInteraction = (Date.now() - lastInteractionTime.current) / 1000;
               
-              // Defer nudges if tab is hidden, paused, or user just returned.
               if (
                   isTabVisible &&
                   appState === 'focusing' &&
-                  timeSinceLastInteraction > 30 // Wait 30s after returning/interaction before nudging.
+                  timeSinceLastInteraction > 30
               ) {
                   showNudge();
               }
