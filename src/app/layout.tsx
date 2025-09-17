@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'FocusFlow',
+  title: 'InTheFlow',
   description: 'Find your flow, one task at a time.',
 };
 

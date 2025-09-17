@@ -17,7 +17,7 @@ export function AppHeader() {
         <div className="flex items-center gap-3">
           <Logo className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-bold font-headline text-foreground">
-            FocusFlow
+            InTheFlow
           </h1>
         </div>
         <div className="flex items-center gap-2">

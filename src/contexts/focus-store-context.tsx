@@ -4,7 +4,7 @@ import React, { createContext, useReducer, useEffect, useState, ReactNode } from
 import { NudgeTone } from '@/components/app/focus-flow-app';
 import { format, isToday, isYesterday, differenceInCalendarDays, parseISO } from 'date-fns';
 
-const LOCAL_STORAGE_KEY = 'focusFlowStore';
+const LOCAL_STORAGE_KEY = 'inTheFlowStore';
 
 export type Task = {
   id: string;
