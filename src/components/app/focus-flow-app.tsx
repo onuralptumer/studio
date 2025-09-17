@@ -10,11 +10,13 @@ import { useFocusStore } from '@/hooks/use-focus-store';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Repeat } from 'lucide-react';
 import { NudgeMessages } from '@/lib/nudges';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
 
 export default function FocusFlowApp() {
-  const { isInitialized, settings, addTask, completeTask, getStats } = useFocusStore();
+  const { isInitialized, settings, setSettings, addTask, completeTask, getStats } = useFocusStore();
   const { toast } = useToast();
   
   const [appState, setAppState] = useState<AppState>('idle');
@@ -32,7 +34,8 @@ export default function FocusFlowApp() {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      setIsTabVisible(document.visibilityState === 'visible');
+      const isVisible = document.visibilityState === 'visible';
+      setIsTabVisible(isVisible);
     };
 
     window.addEventListener('visibilitychange', handleVisibilityChange);
@@ -130,7 +133,7 @@ export default function FocusFlowApp() {
     return `${mins}:${secs}`;
   };
 
-  const showNudge = useCallback(async () => {
+  const showNudge = useCallback(() => {
     const sessionDuration = settings.duration * 60;
     const elapsedSeconds = sessionDuration - timeLeft;
     const progress = (elapsedSeconds / sessionDuration) * 100;
@@ -216,6 +219,19 @@ export default function FocusFlowApp() {
                   value={currentTask}
                   onChange={e => setCurrentTask(e.target.value)}
                 />
+                <div className="grid gap-3 pt-2">
+                  <Label htmlFor="duration" className="font-semibold text-center">
+                    Focus Duration: {settings.duration} minutes
+                  </Label>
+                  <Slider
+                    id="duration"
+                    min={1}
+                    max={60}
+                    step={1}
+                    value={[settings.duration]}
+                    onValueChange={(value) => setSettings({ ...settings, duration: value[0] })}
+                  />
+                </div>
                 <Button type="submit" size="lg" className="h-12 text-lg">
                   Start Focusing
                 </Button>
