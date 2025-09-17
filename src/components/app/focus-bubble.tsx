@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Pause, Play, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type FocusBubbleProps = {
   task: string;
@@ -22,7 +23,12 @@ export function FocusBubble({
 }: FocusBubbleProps) {
   return (
     <div className="flex flex-col items-center justify-center gap-8 w-full">
-      <div className="relative w-80 h-80 sm:w-96 sm:h-96 rounded-full border-4 border-primary/20 bg-primary/5 flex items-center justify-center shadow-lg overflow-hidden">
+      <div
+        className={cn(
+          'relative w-80 h-80 sm:w-96 sm:h-96 rounded-full border-4 border-primary/20 bg-primary/5 flex items-center justify-center shadow-lg overflow-hidden transition-transform',
+          !isPaused && 'animate-heartbeat'
+        )}
+      >
         <div
           className="absolute bottom-0 left-0 w-full bg-accent/30 transition-transform duration-1000 ease-linear"
           style={{
