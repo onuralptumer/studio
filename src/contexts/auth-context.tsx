@@ -31,19 +31,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
-      if (user) {
-        router.push('/focus');
-      } else {
-        // If there's no user and we are on a protected route, redirect to login.
-        // This is a simplified check.
-        if (window.location.pathname === '/focus') {
-          router.push('/login');
-        }
-      }
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
   const signUp = (email, password) => {
     return createUserWithEmailAndPassword(auth, email, password);
