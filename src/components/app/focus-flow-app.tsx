@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppHeader } from '@/components/app/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,8 +22,61 @@ export default function FocusFlowApp() {
   const [currentTask, setCurrentTask] = useState('');
   const [timeLeft, setTimeLeft] = useState(settings.duration * 60);
 
+  // New state for smart nudges
+  const [lastInteractionTime, setLastInteractionTime] = useState(0);
+  const [isTabVisible, setIsTabVisible] = useState(true);
+  const nextNudgeIndex = useRef(0);
+  const nudgeTimestamps = useRef<number[]>([]);
+  const lastNudgeShownTime = useRef(0);
+
+
   useEffect(() => {
     setTimeLeft(settings.duration * 60);
+  }, [settings.duration]);
+
+  const updateUserInteraction = useCallback(() => {
+    setLastInteractionTime(Date.now());
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('keydown', updateUserInteraction);
+    window.addEventListener('click', updateUserInteraction);
+    window.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        setIsTabVisible(true);
+        updateUserInteraction(); // Treat returning to tab as an interaction
+      } else {
+        setIsTabVisible(false);
+      }
+    });
+
+    return () => {
+      window.removeEventListener('keydown', updateUserInteraction);
+      window.removeEventListener('click', updateUserInteraction);
+    };
+  }, [updateUserInteraction]);
+
+
+  const scheduleNudges = useCallback(() => {
+    const sessionDurationSeconds = settings.duration * 60;
+    const nudgeCount = Math.floor(settings.duration / 10);
+    if (nudgeCount === 0) {
+      nudgeTimestamps.current = [];
+      return;
+    }
+
+    const quietStartSeconds = sessionDurationSeconds * 0.25;
+    const quietEndSeconds = sessionDurationSeconds * 0.90;
+    const activeNudgeWindow = quietEndSeconds - quietStartSeconds;
+    const intervalBetweenNudges = activeNudgeWindow / (nudgeCount + 1);
+
+    const timestamps: number[] = [];
+    for (let i = 1; i <= nudgeCount; i++) {
+        const nudgeTime = quietStartSeconds + (i * intervalBetweenNudges);
+        timestamps.push(sessionDurationSeconds - Math.floor(nudgeTime));
+    }
+    nudgeTimestamps.current = timestamps.sort((a,b) => b-a); // descending order of timeLeft
+    nextNudgeIndex.current = 0;
   }, [settings.duration]);
 
   const startTimer = () => {
@@ -36,6 +89,9 @@ export default function FocusFlowApp() {
       return;
     }
     setAppState('focusing');
+    scheduleNudges();
+    updateUserInteraction();
+    lastNudgeShownTime.current = 0;
     addTask({
       id: Date.now().toString(),
       name: currentTask,
@@ -94,6 +150,8 @@ export default function FocusFlowApp() {
       description: nudge,
       duration: 15000, // Show for 15 seconds
     });
+    lastNudgeShownTime.current = timeLeft;
+    nextNudgeIndex.current += 1;
   }, [toast, settings.duration, timeLeft]);
 
 
@@ -102,13 +160,31 @@ export default function FocusFlowApp() {
 
     if (appState === 'focusing') {
       timerId = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
+        setTimeLeft(prevTimeLeft => {
+          if (prevTimeLeft <= 1) {
             clearInterval(timerId);
             setAppState('finished');
             return 0;
           }
-          return prev - 1;
+          const newTimeLeft = prevTimeLeft - 1;
+
+          // Nudge Logic
+          const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
+          if (nextNudgeTime && newTimeLeft <= nextNudgeTime) {
+              const timeSinceLastInteraction = (Date.now() - lastInteractionTime) / 1000;
+              const timeSinceLastNudge = lastNudgeShownTime.current === 0 ? 999 : lastNudgeShownTime.current - newTimeLeft;
+              
+              if (
+                  isTabVisible &&
+                  timeSinceLastInteraction > 30 && // Wait 30s after returning/interaction
+                  timeSinceLastInteraction > 90 && // Anti-spam
+                  timeSinceLastNudge > 30 // Ensure nudges aren't too close
+              ) {
+                  showNudge();
+              }
+          }
+
+          return newTimeLeft;
         });
       }, 1000);
     }
@@ -116,28 +192,8 @@ export default function FocusFlowApp() {
     return () => {
       clearInterval(timerId);
     };
-  }, [appState]);
+  }, [appState, showNudge, isTabVisible, lastInteractionTime]);
 
-  useEffect(() => {
-    let nudgeIntervalId: NodeJS.Timeout | undefined;
-
-    if (appState === 'focusing') {
-      // Show first nudge immediately
-      showNudge();
-      
-      nudgeIntervalId = setInterval(() => {
-        if(appState === 'focusing'){
-            showNudge();
-        }
-      }, 120000); // every 2 minutes
-    }
-    
-    return () => {
-      if (nudgeIntervalId) {
-        clearInterval(nudgeIntervalId);
-      }
-    };
-  }, [appState, showNudge]);
 
   if (!isInitialized) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
@@ -181,7 +237,10 @@ export default function FocusFlowApp() {
             task={currentTask}
             progress={progress}
             isPaused={appState === 'paused'}
-            onTogglePause={() => setAppState(appState === 'paused' ? 'focusing' : 'paused')}
+            onTogglePause={() => {
+              setAppState(appState === 'paused' ? 'focusing' : 'paused');
+              updateUserInteraction(); // Treat pausing/resuming as an interaction
+            }}
             onStop={stopTimer}
             timeLeft={formatTime(timeLeft)}
           />
@@ -207,7 +266,7 @@ export default function FocusFlowApp() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen" onClick={updateUserInteraction}>
       <AppHeader />
       <main className="flex-grow flex items-center justify-center p-4 sm:p-8">
         {renderContent()}
