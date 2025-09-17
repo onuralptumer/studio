@@ -167,6 +167,18 @@ export default function FocusFlowApp() {
     let timerId: NodeJS.Timeout;
 
     if (appState === 'focusing') {
+      const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
+      const timeSinceLastInteraction = (Date.now() - lastInteractionTime.current) / 1000;
+
+      if (
+        nextNudgeTime &&
+        timeLeft <= nextNudgeTime &&
+        isTabVisible &&
+        timeSinceLastInteraction > 30
+      ) {
+        showNudge();
+      }
+
       timerId = setInterval(() => {
         setTimeLeft(prevTimeLeft => {
           if (prevTimeLeft <= 1) {
@@ -174,22 +186,7 @@ export default function FocusFlowApp() {
             setAppState('finished');
             return 0;
           }
-          const newTimeLeft = prevTimeLeft - 1;
-
-          const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
-          if (nextNudgeTime && newTimeLeft <= nextNudgeTime) {
-              const timeSinceLastInteraction = (Date.now() - lastInteractionTime.current) / 1000;
-              
-              if (
-                  isTabVisible &&
-                  appState === 'focusing' &&
-                  timeSinceLastInteraction > 30
-              ) {
-                  showNudge();
-              }
-          }
-
-          return newTimeLeft;
+          return prevTimeLeft - 1;
         });
       }, 1000);
     }
@@ -197,7 +194,7 @@ export default function FocusFlowApp() {
     return () => {
       clearInterval(timerId);
     };
-  }, [appState, showNudge, isTabVisible]);
+  }, [appState, showNudge, isTabVisible, timeLeft]);
 
 
   if (!isInitialized) {
