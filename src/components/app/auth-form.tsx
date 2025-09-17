@@ -40,7 +40,7 @@ export function AuthForm({ mode }: { mode: AuthFormMode }) {
       } else {
         await signUp(email, password);
       }
-      router.push('/focus');
+      // The onAuthStateChanged listener in AuthProvider will handle the redirect.
     } catch (error: any) {
       toast({
         title: 'Authentication Error',
@@ -55,7 +55,7 @@ export function AuthForm({ mode }: { mode: AuthFormMode }) {
     setIsLoading(true);
     try {
       await signInWithGoogle();
-      // The onAuthStateChanged listener in AuthProvider will handle the redirect.
+      // The redirect will happen, and the result will be handled by the AuthProvider
     } catch (error: any) {
       toast({
         title: 'Authentication Error',
