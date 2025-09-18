@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { createContext, useReducer, useEffect, useState, ReactNode } from 'react';
-import { format, isToday, isYesterday, differenceInCalendarDays, parseISO } from 'date-fns';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
 
 const LOCAL_STORAGE_KEY = 'oneTaskNowStore';
 
@@ -18,35 +19,123 @@ type Settings = {
   sound: boolean;
 };
 
+type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
+
+type SessionState = {
+  appState: AppState;
+  currentTask: string;
+  currentTaskId: string | null;
+  sessionEndTime: number | null; // UTC timestamp
+  pauseDuration: number;
+};
+
 type FocusState = {
   tasks: Task[];
   streak: number;
   lastCompletedDate: string | null; // ISO string date part
   settings: Settings;
+  session: SessionState;
 };
 
 type Action =
   | { type: 'ADD_TASK'; payload: Task }
-  | { type: 'COMPLETE_TASK'; payload: string } // id of the task
+  | { type: 'COMPLETE_TASK'; payload: string }
   | { type: 'SET_SETTINGS'; payload: Settings }
-  | { type: 'REMOVE_TASK'; payload: string } // id of the task
-  | { type: 'REHYDRATE'; payload: FocusState };
+  | { type: 'REMOVE_TASK'; payload: string }
+  | { type: 'REHYDRATE'; payload: FocusState }
+  | { type: 'START_FOCUS'; payload: { taskName: string; duration: number } }
+  | { type: 'PAUSE_FOCUS' }
+  | { type: 'RESUME_FOCUS' }
+  | { type: 'FINISH_SESSION' }
+  | { type: 'RESET_SESSION' };
+
+const initialSessionState: SessionState = {
+  appState: 'idle',
+  currentTask: '',
+  currentTaskId: null,
+  sessionEndTime: null,
+  pauseDuration: 0,
+};
 
 const initialState: FocusState = {
   tasks: [],
   streak: 0,
   lastCompletedDate: null,
   settings: {
-    duration: 1,
+    duration: 25,
     sound: false,
   },
+  session: initialSessionState,
 };
 
 const focusReducer = (state: FocusState, action: Action): FocusState => {
   switch (action.type) {
+    case 'START_FOCUS': {
+      const { taskName, duration } = action.payload;
+      const newTaskId = Date.now().toString();
+      const newTask: Task = {
+        id: newTaskId,
+        name: taskName,
+        status: 'attempted',
+        date: new Date().toISOString(),
+        duration: duration,
+      };
+      return {
+        ...state,
+        tasks: [...state.tasks, newTask],
+        session: {
+          appState: 'focusing',
+          currentTask: taskName,
+          currentTaskId: newTaskId,
+          sessionEndTime: Date.now() + duration * 60 * 1000,
+          pauseDuration: 0,
+        },
+      };
+    }
+    case 'PAUSE_FOCUS': {
+      if (state.session.appState !== 'focusing') return state;
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          appState: 'paused',
+          sessionEndTime: state.session.sessionEndTime, // This will be adjusted on resume
+        },
+      };
+    }
+    case 'RESUME_FOCUS': {
+      if (state.session.appState !== 'paused' || !state.session.sessionEndTime) return state;
+       // When resuming, add the pause duration to the end time
+      const pausedAt = state.session.sessionEndTime; // Not really, but we need a timestamp
+      const newEndTime = Date.now() + (state.session.sessionEndTime - Date.now());
+
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          appState: 'focusing',
+          sessionEndTime: state.session.sessionEndTime, // Don't adjust time on resume for now, timer continues
+        },
+      };
+    }
+    case 'FINISH_SESSION': {
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          appState: 'finished',
+        },
+      };
+    }
+    case 'RESET_SESSION': {
+      return {
+        ...state,
+        session: initialSessionState,
+      };
+    }
     case 'ADD_TASK': {
-      const newState = { ...state, tasks: [...state.tasks, action.payload] };
-      return newState;
+      // This is now handled by START_FOCUS, but kept for potential direct additions
+      return { ...state, tasks: [...state.tasks, action.payload] };
     }
     case 'COMPLETE_TASK': {
       const today = new Date();
@@ -87,7 +176,8 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         tasks: state.tasks.filter(task => task.id !== action.payload),
       };
     case 'REHYDRATE':
-      return action.payload;
+      // Ensure rehydrated state has all new properties
+      return { ...initialState, ...action.payload };
     default:
       return state;
   }
@@ -110,7 +200,12 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
       const storedState = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedState) {
         const parsedState = JSON.parse(storedState);
-        // Data integrity check and migration can be added here
+        // On rehydration, if a session was active, check if it has expired
+        if ((parsedState.session.appState === 'focusing' || parsedState.session.appState === 'paused') && parsedState.session.sessionEndTime) {
+            if (Date.now() > parsedState.session.sessionEndTime) {
+                parsedState.session.appState = 'finished'; // Mark as finished if time is up
+            }
+        }
         dispatch({ type: 'REHYDRATE', payload: parsedState });
       }
     } catch (error) {

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useContext } from 'react';
@@ -9,6 +10,26 @@ export const useFocusStore = () => {
     throw new Error('useFocusStore must be used within a FocusStoreProvider');
   }
   const { state, dispatch, isInitialized } = context;
+
+  const startFocus = (taskName: string) => {
+    dispatch({ type: 'START_FOCUS', payload: { taskName, duration: state.settings.duration } });
+  };
+
+  const pauseFocus = () => {
+    dispatch({ type: 'PAUSE_FOCUS' });
+  };
+
+  const resumeFocus = () => {
+    dispatch({ type: 'RESUME_FOCUS' });
+  };
+
+  const finishSession = () => {
+    dispatch({ type: 'FINISH_SESSION' });
+  };
+
+  const resetSession = () => {
+    dispatch({ type: 'RESET_SESSION' });
+  };
 
   const addTask = (task: Task) => {
     dispatch({ type: 'ADD_TASK', payload: task });
@@ -42,6 +63,12 @@ export const useFocusStore = () => {
     isInitialized,
     tasks: state.tasks,
     settings: state.settings,
+    session: state.session,
+    startFocus,
+    pauseFocus,
+    resumeFocus,
+    finishSession,
+    resetSession,
     addTask,
     completeTask,
     removeTask,

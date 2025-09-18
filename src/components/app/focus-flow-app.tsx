@@ -14,19 +14,26 @@ import { NudgeMessages } from '@/lib/nudges';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { useAuth } from '@/hooks/use-auth';
-import { useRouter } from 'next/navigation';
 import { MusicPlayer } from './music-player';
-
-type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
 
 export default function FocusFlowApp() {
   const { user, loading } = useAuth();
-  const router = useRouter();
-  const { isInitialized, settings, setSettings, addTask, completeTask, getStats } = useFocusStore();
+  const {
+    isInitialized,
+    settings,
+    setSettings,
+    session,
+    startFocus,
+    pauseFocus,
+    resumeFocus,
+    finishSession,
+    resetSession,
+    getStats,
+    completeTask,
+  } = useFocusStore();
   const { toast } = useToast();
-  
-  const [appState, setAppState] = useState<AppState>('idle');
-  const [currentTask, setCurrentTask] = useState('');
+
+  const [taskInput, setTaskInput] = useState('');
   const [timeLeft, setTimeLeft] = useState(0);
 
   const nudgeTimestamps = useRef<number[]>([]);
@@ -35,20 +42,24 @@ export default function FocusFlowApp() {
 
   useEffect(() => {
     if (isInitialized) {
-      setTimeLeft(settings.duration * 60);
+      if (session.appState === 'focusing' || session.appState === 'paused') {
+        const remaining = session.sessionEndTime ? (session.sessionEndTime - Date.now()) / 1000 : 0;
+        setTimeLeft(Math.max(0, remaining));
+      } else {
+        setTimeLeft(settings.duration * 60);
+        setTaskInput('');
+      }
     }
-  }, [settings.duration, isInitialized]);
-  
+  }, [session.appState, settings.duration, isInitialized, session.sessionEndTime]);
+
   useEffect(() => {
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === 'visible';
-      if (isVisible && appState === 'focusing' && pauseStartTime.current !== null) {
-          // Tab is visible again, adjust nudge timestamps by the duration the tab was hidden
+      if (isVisible && session.appState === 'focusing' && pauseStartTime.current !== null) {
           const pauseDuration = (Date.now() - pauseStartTime.current) / 1000;
           nudgeTimestamps.current = nudgeTimestamps.current.map(t => t - pauseDuration);
           pauseStartTime.current = null;
-      } else if (!isVisible && appState === 'focusing') {
-          // Tab is hidden, record pause start time
+      } else if (!isVisible && session.appState === 'focusing') {
           pauseStartTime.current = Date.now();
       }
     };
@@ -58,46 +69,28 @@ export default function FocusFlowApp() {
     return () => {
       window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [appState]);
-
+  }, [session.appState]);
 
   const scheduleNudges = useCallback(() => {
-    // Total session duration in seconds.
     const sessionDurationSeconds = settings.duration * 60;
-    
-    // Nudge count is at least 1, or more for longer sessions (1 per 5 mins).
     const nudgeCount = Math.ceil(settings.duration / 5) || 1;
-    
-    // Quiet Start: No nudges in the first 25% of the session.
     const quietStartSeconds = sessionDurationSeconds * 0.25;
-    
-    // Quiet End: No nudges in the last 10% of the session.
     const quietEndSeconds = sessionDurationSeconds * 0.10;
-    
-    // The "active" window is the time available for sending nudges.
     const activeNudgeWindowDuration = sessionDurationSeconds - quietStartSeconds - quietEndSeconds;
-    
-    // To create evenly-spaced nudges, we divide the active window into segments.
-    // Adding 1 to nudgeCount ensures the intervals are between the nudges.
     const intervalBetweenNudges = activeNudgeWindowDuration / (nudgeCount + 1);
     
     const timestamps: number[] = [];
     for (let i = 1; i <= nudgeCount; i++) {
-        // Calculate the time for each nudge. We start from the beginning of the active window
-        // and add the interval for each subsequent nudge.
         const nudgeTimeFromStart = quietStartSeconds + (i * intervalBetweenNudges);
-        
-        // Timestamps are stored as "time left", so we subtract from the total duration.
         timestamps.push(Math.floor(sessionDurationSeconds - nudgeTimeFromStart));
     }
 
-    // Sort timestamps in descending order, so it's easy to check the next one.
     nudgeTimestamps.current = timestamps.sort((a,b) => b-a);
     nextNudgeIndex.current = 0;
   }, [settings.duration]);
 
   const startTimer = () => {
-    if (currentTask.trim() === '') {
+    if (taskInput.trim() === '') {
       toast({
         title: 'No Task Entered',
         description: 'Please enter a task to focus on.',
@@ -105,43 +98,26 @@ export default function FocusFlowApp() {
       });
       return;
     }
-    setAppState('focusing');
     scheduleNudges();
-    addTask({
-      id: Date.now().toString(),
-      name: currentTask,
-      status: 'attempted',
-      date: new Date().toISOString(),
-      duration: settings.duration,
-    });
-  };
-
-  const stopTimer = () => {
-    setAppState('finished');
+    startFocus(taskInput);
   };
 
   const handleTaskDone = () => {
     const stats = getStats();
-    const lastTask = stats.tasks[stats.tasks.length - 1];
+    const lastTask = stats.tasks.find(t => t.id === session.currentTaskId);
     if (lastTask) {
       completeTask(lastTask.id);
     }
-    reset();
+    resetSession();
   };
   
   const handleRetry = () => {
-    reset();
-  };
-
-  const reset = () => {
-    setCurrentTask('');
-    setAppState('idle');
-    setTimeLeft(settings.duration * 60);
+    resetSession();
   };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const secs = (seconds % 60).toString().padStart(2, '0');
+    const secs = (Math.round(seconds) % 60).toString().padStart(2, '0');
     return `${mins}:${secs}`;
   };
 
@@ -174,48 +150,45 @@ export default function FocusFlowApp() {
 
 
   useEffect(() => {
-    if (appState !== 'focusing') {
+    if (session.appState !== 'focusing') {
       return;
     }
 
     const timerId = setInterval(() => {
-      setTimeLeft(prevTimeLeft => {
-        const newTimeLeft = prevTimeLeft - 1;
+      const remaining = session.sessionEndTime ? (session.sessionEndTime - Date.now()) / 1000 : 0;
+      
+      if (remaining <= 0) {
+        clearInterval(timerId);
+        finishSession();
+        setTimeLeft(0);
+        return;
+      }
+      
+      setTimeLeft(remaining);
 
-        if (newTimeLeft <= 0) {
-          clearInterval(timerId);
-          setAppState('finished');
-          return 0;
-        }
+      const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
+      const isVisible = document.visibilityState === 'visible';
 
-        // Check for nudges inside the callback to use the correct state
-        const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
-        const isVisible = document.visibilityState === 'visible';
-
-        if (
-          nextNudgeTime !== undefined &&
-          newTimeLeft <= nextNudgeTime &&
-          isVisible
-        ) {
-          showNudge();
-        }
-        
-        return newTimeLeft;
-      });
+      if (
+        nextNudgeTime !== undefined &&
+        remaining <= nextNudgeTime &&
+        isVisible
+      ) {
+        showNudge();
+      }
     }, 1000);
 
     return () => {
       clearInterval(timerId);
     };
-  }, [appState, showNudge]);
-
+  }, [session.appState, showNudge, session.sessionEndTime, finishSession]);
 
   if (loading || !isInitialized || !user) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
   const renderContent = () => {
-    switch (appState) {
+    switch (session.appState) {
       case 'idle':
         return (
           <Card className="w-full max-w-md shadow-xl border-none bg-card/80 backdrop-blur-sm">
@@ -234,8 +207,8 @@ export default function FocusFlowApp() {
                 <Input
                   placeholder="e.g., Draft the project proposal"
                   className="text-center text-lg h-12"
-                  value={currentTask}
-                  onChange={e => setCurrentTask(e.target.value)}
+                  value={taskInput}
+                  onChange={e => setTaskInput(e.target.value)}
                 />
                 <div className="grid gap-3 pt-2">
                   <Label htmlFor="duration" className="font-semibold text-center">
@@ -262,14 +235,17 @@ export default function FocusFlowApp() {
         const progress = ((settings.duration * 60 - timeLeft) / (settings.duration * 60)) * 100;
         return (
           <FocusBubble
-            task={currentTask}
+            task={session.currentTask}
             progress={progress}
-            isPaused={appState === 'paused'}
+            isPaused={session.appState === 'paused'}
             onTogglePause={() => {
-              const newState = appState === 'paused' ? 'focusing' : 'paused';
-              setAppState(newState);
+              if (session.appState === 'paused') {
+                resumeFocus();
+              } else {
+                pauseFocus();
+              }
             }}
-            onStop={stopTimer}
+            onStop={finishSession}
             timeLeft={formatTime(timeLeft)}
           />
         );
@@ -300,7 +276,7 @@ export default function FocusFlowApp() {
         {renderContent()}
       </main>
       <footer className="fixed bottom-0 left-0 right-0 p-4 flex justify-center">
-        <MusicPlayer isPlayingOverride={appState !== 'finished'} />
+        <MusicPlayer isPlayingOverride={session.appState !== 'finished'} />
       </footer>
     </div>
   );
