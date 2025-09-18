@@ -2,7 +2,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +18,6 @@ export function AuthForm({ mode }: { mode: AuthFormMode }) {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signIn, signUp } = useAuth();
-  const router = useRouter();
   const { toast } = useToast();
 
   const title = mode === 'login' ? 'Welcome Back' : 'Create an Account';
@@ -55,7 +53,7 @@ export function AuthForm({ mode }: { mode: AuthFormMode }) {
        <div className="absolute top-4 left-4">
         <Link href="/" className="flex items-center gap-3">
           <Logo className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-bold font-headline">InTheFlow</span>
+          <span className="text-2xl font-bold font-headline">OneTaskNow</span>
         </Link>
       </div>
       <Card className="w-full max-w-sm">

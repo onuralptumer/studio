@@ -30,7 +30,7 @@ export function LandingPage() {
           <Link href="/" className="flex items-center gap-3">
             <Logo className="h-8 w-8 text-primary" />
             <span className="text-2xl font-bold font-headline">
-              InTheFlow
+              OneTaskNow
             </span>
           </Link>
           <nav className="flex items-center gap-2">
@@ -150,8 +150,7 @@ export function LandingPage() {
                 <h3 className="mt-4 text-lg font-semibold">End-of-Day Recap</h3>
                 <p className="mt-2 text-muted-foreground">
                   Review your accomplishments and build momentum.
-                </p>
-              </div>
+                </p>              </div>
             </div>
           </div>
         </section>
@@ -264,7 +263,7 @@ export function LandingPage() {
           <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} InTheFlow. All rights reserved.
+              &copy; {new Date().getFullYear()} OneTaskNow. All rights reserved.
             </p>
           </div>
           <div className="flex gap-4">

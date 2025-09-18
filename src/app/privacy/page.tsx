@@ -22,7 +22,7 @@ export default function PrivacyPage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
           <Link href="/" className="flex items-center gap-3">
             <Logo className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold font-headline">InTheFlow</span>
+            <span className="text-2xl font-bold font-headline">OneTaskNow</span>
           </Link>
         </div>
       </header>
@@ -32,7 +32,7 @@ export default function PrivacyPage() {
           <div className="space-y-8">
             <div className="space-y-2">
               <h1 className="text-4xl font-extrabold tracking-tight font-headline">
-                Privacy Policy — InTheFlow
+                Privacy Policy — OneTaskNow
               </h1>
               <p className="text-muted-foreground">
                 {effectiveDate ? `Effective Date: ${effectiveDate}`: 'Loading date...'}
@@ -136,7 +136,7 @@ export default function PrivacyPage() {
           <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} InTheFlow. All rights reserved.
+              &copy; {new Date().getFullYear()} OneTaskNow. All rights reserved.
             </p>
           </div>
           <div className="flex gap-4">

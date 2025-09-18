@@ -3,7 +3,7 @@
 import React, { createContext, useReducer, useEffect, useState, ReactNode } from 'react';
 import { format, isToday, isYesterday, differenceInCalendarDays, parseISO } from 'date-fns';
 
-const LOCAL_STORAGE_KEY = 'inTheFlowStore';
+const LOCAL_STORAGE_KEY = 'oneTaskNowStore';
 
 export type Task = {
   id: string;

@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/auth-context';
 
 export const metadata: Metadata = {
-  title: 'InTheFlow',
+  title: 'OneTaskNow',
   description: 'Find your flow, one task at a time.',
 };
 

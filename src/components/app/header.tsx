@@ -38,7 +38,7 @@ export function AppHeader() {
         <Link href="/" className="flex items-center gap-3">
           <Logo className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-bold font-headline text-foreground">
-            InTheFlow
+            OneTaskNow
           </h1>
         </Link>
         <div className="flex items-center gap-2">
