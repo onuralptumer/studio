@@ -35,32 +35,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let unsubscribe: (() => void) | undefined;
     let isMounted = true;
 
-    const handleAuth = async () => {
-      // First, process any pending redirect result.
+    (async () => {
+      console.log("origin before redirect result:", window.location.origin);
       try {
-        await getRedirectResult(auth);
-        // If the user signed in via redirect, onAuthStateChanged will now
-        // fire with the correct user.
-      } catch (error) {
-        console.error("Error processing redirect result:", error);
+        const res = await getRedirectResult(auth);
+        console.log("redirect result:", !!res?.user, res?.providerId);
+      } catch (e: any) {
+        // auth/no-auth-event is expected if there was no redirect
+        if (e?.code !== "auth/no-auth-event") console.error(e);
       }
 
-      // Now, set up the listener. It will fire with the user from the redirect
-      // or the existing session.
       unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-        if (isMounted) {
-          setUser(fbUser);
-          if (fbUser) {
-            // User is logged in, navigate them to the main app.
-            // Using replace so they don't get stuck in a login loop on back button.
-            router.replace('/focus');
-          }
-          setLoading(false);
+        if (!isMounted) return;
+        console.log("onAuthStateChanged user:", !!fbUser);
+        setUser(fbUser);
+        setLoading(false);
+
+        if (fbUser) {
+          router.replace('/focus');
         }
       });
-    };
-
-    handleAuth();
+    })();
 
     return () => {
       isMounted = false;
@@ -68,7 +63,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         unsubscribe();
       }
     };
-    // This effect should only run once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -89,7 +83,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-      // After signing out, redirect to the homepage.
       router.push('/');
     } catch (error) {
       console.error("Error signing out: ", error);
