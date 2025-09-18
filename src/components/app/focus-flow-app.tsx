@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
+import { MusicPlayer } from './music-player';
 
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
 
@@ -76,13 +77,6 @@ export default function FocusFlowApp() {
     // The "active" window is the time available for sending nudges.
     const activeNudgeWindowDuration = sessionDurationSeconds - quietStartSeconds - quietEndSeconds;
     
-    // If the window is too short, no nudges will be scheduled.
-    //if (activeNudgeWindowDuration < 1) {
-    //    nudgeTimestamps.current = [];
-    //    nextNudgeIndex.current = 0;
-    //    return;
-    //}
-
     // To create evenly-spaced nudges, we divide the active window into segments.
     // Adding 1 to nudgeCount ensures the intervals are between the nudges.
     const intervalBetweenNudges = activeNudgeWindowDuration / (nudgeCount + 1);
@@ -305,6 +299,9 @@ export default function FocusFlowApp() {
       <main className="flex-grow flex items-center justify-center p-4 sm:p-8">
         {renderContent()}
       </main>
+      <footer className="fixed bottom-0 left-0 right-0 p-4 flex justify-center">
+        <MusicPlayer />
+      </footer>
     </div>
   );
 }
