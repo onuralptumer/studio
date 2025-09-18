@@ -36,16 +36,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let isMounted = true;
 
     (async () => {
-      // This handles the redirect result from Google Sign-In
+      // First, handle the redirect result from Google Sign-In.
       try {
         console.log("origin before redirect result:", window.location.origin);
         const res = await getRedirectResult(auth);
         console.log("redirect result:", !!res?.user, res?.providerId);
       } catch (e: any) {
+        // auth/no-auth-event is expected if there was no redirect
         if (e?.code !== "auth/no-auth-event") console.error(e);
       }
 
-      // This listener handles all auth state changes
+      // Then, set up the onAuthStateChanged listener.
+      // This will fire with the user from the redirect result if it exists,
+      // or with the existing session user, or null.
       unsubscribe = onAuthStateChanged(auth, (fbUser) => {
         if (!isMounted) return;
         console.log("onAuthStateChanged user:", !!fbUser);
@@ -80,7 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-      // Let the onAuthStateChanged listener and page logic handle redirects.
+      // Let the page components handle the redirect.
       router.push('/');
     } catch (error) {
       console.error("Error signing out: ", error);
