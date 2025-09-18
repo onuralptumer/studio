@@ -17,9 +17,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
-import { musicTracks, MusicTrack } from '@/lib/music';
+import { musicTracks } from '@/lib/music';
 
-export function MusicPlayer() {
+type MusicPlayerProps = {
+  isPlayingOverride?: boolean;
+};
+
+export function MusicPlayer({ isPlayingOverride }: MusicPlayerProps) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -51,6 +55,14 @@ export function MusicPlayer() {
       }
     }
   }, [isPlaying, currentTrackIndex]);
+
+  // Effect to handle external play/pause control
+  useEffect(() => {
+    if (isPlayingOverride === false) {
+      setIsPlaying(false);
+    }
+  }, [isPlayingOverride]);
+
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);

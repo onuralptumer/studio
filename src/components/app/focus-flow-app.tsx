@@ -300,7 +300,7 @@ export default function FocusFlowApp() {
         {renderContent()}
       </main>
       <footer className="fixed bottom-0 left-0 right-0 p-4 flex justify-center">
-        <MusicPlayer />
+        <MusicPlayer isPlayingOverride={appState !== 'finished'} />
       </footer>
     </div>
   );
