@@ -36,11 +36,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let isMounted = true;
 
     const handleAuth = async () => {
+      // First, process any pending redirect result.
       try {
-        // First, process the redirect result. This will populate the session.
-        const result = await getRedirectResult(auth);
-        // If the user signed in via redirect, the user object will be in the result.
-        // onAuthStateChanged will then fire with the correct user.
+        await getRedirectResult(auth);
+        // If the user signed in via redirect, onAuthStateChanged will now
+        // fire with the correct user.
       } catch (error) {
         console.error("Error processing redirect result:", error);
       }
