@@ -67,11 +67,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
 
-  const signUp = (email, password) => {
+  const signUp = (email: string, password: string) => {
     return createUserWithEmailAndPassword(auth, email, password);
   };
 
-  const signIn = (email, password) => {
+  const signIn = (email: string, password: string) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
