@@ -71,7 +71,8 @@ export function LandingPage() {
             <Card className="overflow-hidden shadow-2xl">
               <CardContent className="p-0">
                 <Image
-                  src="https://picsum.photos/id/180/1200/600"
+                  src="/photo/180-1200x600.jpg"
+                  //src="https://picsum.photos/id/180/1200/600"
                   alt="App Mockup"
                   width={1200}
                   height={600}
@@ -166,7 +167,7 @@ export function LandingPage() {
             <div className="mt-12 grid gap-12 md:grid-cols-3">
               <div className="text-center">
                 <div className="flex items-center justify-center">
-                    <Image src="https://picsum.photos/id/668/400/300?grayscale" alt="Step 1" width={400} height={300} className="rounded-lg shadow-md" data-ai-hint="typing task"/>
+                    <Image src="/photo/668-400x300-grayscale.jpg" alt="Step 1" width={400} height={300} className="rounded-lg shadow-md" data-ai-hint="typing task"/>
                 </div>
                 <h3 className="mt-6 text-xl font-bold">1. Type your next task</h3>
                 <p className="mt-2 text-muted-foreground">
@@ -175,7 +176,7 @@ export function LandingPage() {
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center">
-                    <Image src="https://picsum.photos/id/4/400/300?grayscale" alt="Step 2" width={400} height={300} className="rounded-lg shadow-md" data-ai-hint="timer bubble"/>
+                    <Image src="/photo/4-400x300-grayscale.jpg" alt="Step 2" width={400} height={300} className="rounded-lg shadow-md" data-ai-hint="timer bubble"/>
                 </div>
                 <h3 className="mt-6 text-xl font-bold">2. Start the bubble timer</h3>
                 <p className="mt-2 text-muted-foreground">
@@ -184,7 +185,7 @@ export function LandingPage() {
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center">
-                    <Image src="https://picsum.photos/id/20/400/300?grayscale" alt="Step 3" width={400} height={300} className="rounded-lg shadow-md" data-ai-hint="daily recap"/>
+                    <Image src="/photo/20-400x300-grayscale.jpg" alt="Step 3" width={400} height={300} className="rounded-lg shadow-md" data-ai-hint="daily recap"/>
                 </div>
                 <h3 className="mt-6 text-xl font-bold">3. Get nudges & recap</h3>
                 <p className="mt-2 text-muted-foreground">
