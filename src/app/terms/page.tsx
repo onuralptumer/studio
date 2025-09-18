@@ -1,12 +1,21 @@
+
+'use client';
+
 import Link from 'next/link';
 import { Logo } from '@/components/icons';
+import { useState, useEffect } from 'react';
 
 export default function TermsPage() {
-  const date = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const [effectiveDate, setEffectiveDate] = useState('');
+
+  useEffect(() => {
+    setEffectiveDate(new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }));
+  }, []);
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -26,7 +35,9 @@ export default function TermsPage() {
               <h1 className="text-4xl font-extrabold tracking-tight font-headline">
                 Terms of Service — InTheFlow
               </h1>
-              <p className="text-muted-foreground">Effective Date: {date}</p>
+              <p className="text-muted-foreground">
+                {effectiveDate ? `Effective Date: ${effectiveDate}`: 'Loading date...'}
+              </p>
             </div>
 
             <div className="space-y-6">
