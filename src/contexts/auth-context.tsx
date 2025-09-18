@@ -8,9 +8,6 @@ import {
   signOut as firebaseSignOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
   UserCredential,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -21,7 +18,6 @@ type AuthContextType = {
   loading: boolean;
   signUp: (email: string, password: string) => Promise<UserCredential>;
   signIn: (email: string, password: string) => Promise<UserCredential>;
-  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -33,35 +29,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    let isMounted = true;
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      setUser(fbUser);
+      setLoading(false);
+    });
 
-    (async () => {
-      // Process redirect result first
-      try {
-        console.log("origin before redirect result:", window.location.origin);
-        const res = await getRedirectResult(auth);
-        console.log("redirect result:", !!res?.user, res?.providerId);
-      } catch (e: any) {
-        if (e?.code !== "auth/no-auth-event") console.error(e);
-      }
-
-      // Then, set up the onAuthStateChanged listener.
-      unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-        if (!isMounted) return;
-        console.log("onAuthStateChanged user:", !!fbUser);
-        setUser(fbUser);
-        setLoading(false);
-      });
-    })();
-
-    return () => {
-      isMounted = false;
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
 
@@ -71,11 +45,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = (email: string, password: string) => {
     return signInWithEmailAndPassword(auth, email, password);
-  };
-
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
   };
 
   const signOut = async () => {
@@ -88,7 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

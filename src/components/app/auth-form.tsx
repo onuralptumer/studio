@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Logo } from '../icons';
-import { Chrome } from 'lucide-react';
 
 type AuthFormMode = 'login' | 'signup';
 
@@ -19,7 +18,7 @@ export function AuthForm({ mode }: { mode: AuthFormMode }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -47,22 +46,6 @@ export function AuthForm({ mode }: { mode: AuthFormMode }) {
         description: error.message,
         variant: 'destructive',
       });
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    try {
-      await signInWithGoogle();
-      // The redirect will happen, and the result will be handled by the AuthProvider
-    } catch (error: any) {
-      toast({
-        title: 'Authentication Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -108,22 +91,6 @@ export function AuthForm({ mode }: { mode: AuthFormMode }) {
               {isLoading ? 'Processing...' : buttonText}
             </Button>
           </form>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-
-          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
-            <Chrome className="mr-2 h-4 w-4" />
-            Google
-          </Button>
 
           <div className="mt-4 text-center text-sm">
             {alternativeText}{' '}
