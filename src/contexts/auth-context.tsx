@@ -38,7 +38,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     (async () => {
       // This handles the redirect result from Google Sign-In
       try {
-        await getRedirectResult(auth);
+        console.log("origin before redirect result:", window.location.origin);
+        const res = await getRedirectResult(auth);
+        console.log("redirect result:", !!res?.user, res?.providerId);
       } catch (e: any) {
         if (e?.code !== "auth/no-auth-event") console.error(e);
       }
@@ -46,6 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // This listener handles all auth state changes
       unsubscribe = onAuthStateChanged(auth, (fbUser) => {
         if (!isMounted) return;
+        console.log("onAuthStateChanged user:", !!fbUser);
         setUser(fbUser);
         setLoading(false);
       });
@@ -86,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, signOut }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
