@@ -77,11 +77,11 @@ export default function FocusFlowApp() {
     const activeNudgeWindowDuration = sessionDurationSeconds - quietStartSeconds - quietEndSeconds;
     
     // If the window is too short, no nudges will be scheduled.
-    if (activeNudgeWindowDuration < 1) {
-        nudgeTimestamps.current = [];
-        nextNudgeIndex.current = 0;
-        return;
-    }
+    //if (activeNudgeWindowDuration < 1) {
+    //    nudgeTimestamps.current = [];
+    //    nextNudgeIndex.current = 0;
+    //    return;
+    //}
 
     // To create evenly-spaced nudges, we divide the active window into segments.
     // Adding 1 to nudgeCount ensures the intervals are between the nudges.
@@ -181,40 +181,39 @@ export default function FocusFlowApp() {
 
   useEffect(() => {
     if (appState !== 'focusing') {
-        return;
+      return;
     }
 
     const timerId = setInterval(() => {
-        let newTimeLeft = 0;
-        setTimeLeft(prevTimeLeft => {
-            newTimeLeft = prevTimeLeft - 1;
+      setTimeLeft(prevTimeLeft => {
+        const newTimeLeft = prevTimeLeft - 1;
 
-            if (newTimeLeft <= 0) {
-                clearInterval(timerId);
-                setAppState('finished');
-                return 0;
-            }
-            return newTimeLeft;
-        });
-
-        // Check for nudges
-        const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
-        const isVisible = document.visibilityState === 'visible';
-        
-        if (
-            nextNudgeTime !== undefined &&
-            newTimeLeft <= nextNudgeTime &&
-            isVisible
-        ) {
-            showNudge();
+        if (newTimeLeft <= 0) {
+          clearInterval(timerId);
+          setAppState('finished');
+          return 0;
         }
 
+        // Check for nudges inside the callback to use the correct state
+        const nextNudgeTime = nudgeTimestamps.current[nextNudgeIndex.current];
+        const isVisible = document.visibilityState === 'visible';
+
+        if (
+          nextNudgeTime !== undefined &&
+          newTimeLeft <= nextNudgeTime &&
+          isVisible
+        ) {
+          showNudge();
+        }
+        
+        return newTimeLeft;
+      });
     }, 1000);
 
     return () => {
-        clearInterval(timerId);
+      clearInterval(timerId);
     };
-}, [appState, showNudge]);
+  }, [appState, showNudge]);
 
 
   if (loading || !isInitialized || !user) {
