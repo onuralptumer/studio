@@ -116,8 +116,9 @@ export default function FocusFlowApp() {
   };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const secs = (Math.round(seconds) % 60).toString().padStart(2, '0');
+    const totalSeconds = Math.ceil(seconds);
+    const mins = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const secs = (totalSeconds % 60).toString().padStart(2, '0');
     return `${mins}:${secs}`;
   };
 
