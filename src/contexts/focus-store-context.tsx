@@ -25,7 +25,6 @@ type SessionState = {
   currentTask: string;
   currentTaskId: string | null;
   sessionEndTime: number | null; // UTC timestamp
-  pauseDuration: number;
 };
 
 type FocusState = {
@@ -43,7 +42,7 @@ type Action =
   | { type: 'REHYDRATE'; payload: FocusState }
   | { type: 'START_FOCUS'; payload: { taskName: string; duration: number } }
   | { type: 'PAUSE_FOCUS' }
-  | { type: 'RESUME_FOCUS' }
+  | { type: 'RESUME_FOCUS'; payload: { newSessionEndTime: number } }
   | { type: 'FINISH_SESSION' }
   | { type: 'RESET_SESSION' };
 
@@ -52,7 +51,6 @@ const initialSessionState: SessionState = {
   currentTask: '',
   currentTaskId: null,
   sessionEndTime: null,
-  pauseDuration: 0,
 };
 
 const initialState: FocusState = {
@@ -85,7 +83,6 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
           currentTask: taskName,
           currentTaskId: newTaskId,
           sessionEndTime: Date.now() + duration * 60 * 1000,
-          pauseDuration: 0,
         },
       };
     }
@@ -106,6 +103,7 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         session: {
           ...state.session,
           appState: 'focusing',
+          sessionEndTime: action.payload.newSessionEndTime,
         },
       };
     }
@@ -190,7 +188,9 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
         // On rehydration, if a session was active, check if it has expired
         if ((parsedState.session.appState === 'focusing' || parsedState.session.appState === 'paused') && parsedState.session.sessionEndTime) {
             if (Date.now() > parsedState.session.sessionEndTime) {
-                parsedState.session.appState = 'finished'; // Mark as finished if time is up
+                // If the session was paused, we need to account for time offline.
+                // It's simplest to just end the session if the original end time has passed.
+                parsedState.session.appState = 'finished';
             }
         }
         dispatch({ type: 'REHYDRATE', payload: parsedState });

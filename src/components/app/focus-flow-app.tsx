@@ -52,6 +52,20 @@ export default function FocusFlowApp() {
     }
   }, [session.appState, settings.duration, isInitialized, session.sessionEndTime]);
 
+  const handlePauseToggle = () => {
+    if (session.appState === 'paused') {
+      if (pauseStartTime.current && session.sessionEndTime) {
+        const pauseDuration = Date.now() - pauseStartTime.current;
+        const newSessionEndTime = session.sessionEndTime + pauseDuration;
+        resumeFocus(newSessionEndTime);
+        pauseStartTime.current = null;
+      }
+    } else {
+      pauseStartTime.current = Date.now();
+      pauseFocus();
+    }
+  };
+
   useEffect(() => {
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === 'visible';
@@ -239,13 +253,7 @@ export default function FocusFlowApp() {
             task={session.currentTask}
             progress={progress}
             isPaused={session.appState === 'paused'}
-            onTogglePause={() => {
-              if (session.appState === 'paused') {
-                resumeFocus();
-              } else {
-                pauseFocus();
-              }
-            }}
+            onTogglePause={handlePauseToggle}
             onStop={finishSession}
             timeLeft={formatTime(timeLeft)}
           />
