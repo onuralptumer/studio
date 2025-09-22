@@ -19,8 +19,8 @@ export const useFocusStore = () => {
     dispatch({ type: 'PAUSE_FOCUS' });
   };
 
-  const resumeFocus = (newSessionEndTime: number) => {
-    dispatch({ type: 'RESUME_FOCUS', payload: { newSessionEndTime } });
+  const resumeFocus = () => {
+    dispatch({ type: 'RESUME_FOCUS' });
   };
 
   const finishSession = () => {

@@ -38,52 +38,28 @@ export default function FocusFlowApp() {
 
   const nudgeTimestamps = useRef<number[]>([]);
   const nextNudgeIndex = useRef(0);
-  const pauseStartTime = useRef<number | null>(null);
 
   useEffect(() => {
     if (isInitialized) {
-      if (session.appState === 'focusing' || session.appState === 'paused') {
+      if (session.appState === 'focusing') {
         const remaining = session.sessionEndTime ? (session.sessionEndTime - Date.now()) / 1000 : 0;
         setTimeLeft(Math.max(0, remaining));
+      } else if (session.appState === 'paused' && session.remainingTimeOnPause) {
+        setTimeLeft(session.remainingTimeOnPause);
       } else {
         setTimeLeft(settings.duration * 60);
         setTaskInput('');
       }
     }
-  }, [session.appState, settings.duration, isInitialized, session.sessionEndTime]);
+  }, [session.appState, settings.duration, isInitialized, session.sessionEndTime, session.remainingTimeOnPause]);
 
   const handlePauseToggle = () => {
     if (session.appState === 'paused') {
-      if (pauseStartTime.current && session.sessionEndTime) {
-        const pauseDuration = Date.now() - pauseStartTime.current;
-        const newSessionEndTime = session.sessionEndTime + pauseDuration;
-        resumeFocus(newSessionEndTime);
-        pauseStartTime.current = null;
-      }
+      resumeFocus();
     } else {
-      pauseStartTime.current = Date.now();
       pauseFocus();
     }
   };
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      const isVisible = document.visibilityState === 'visible';
-      if (isVisible && session.appState === 'focusing' && pauseStartTime.current !== null) {
-          const pauseDuration = (Date.now() - pauseStartTime.current) / 1000;
-          nudgeTimestamps.current = nudgeTimestamps.current.map(t => t - pauseDuration);
-          pauseStartTime.current = null;
-      } else if (!isVisible && session.appState === 'focusing') {
-          pauseStartTime.current = Date.now();
-      }
-    };
-
-    window.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [session.appState]);
 
   const scheduleNudges = useCallback(() => {
     const sessionDurationSeconds = settings.duration * 60;
@@ -146,9 +122,9 @@ export default function FocusFlowApp() {
     if (progress < 50) {
       messageCategory = 'gentle';
     } else if (progress >= 50 && progress < 75) {
-      messageCategory = 'motivating';
-    } else {
       messageCategory = 'playful';
+    } else {
+      messageCategory = 'motivating';
     }
     
     const messages = NudgeMessages[messageCategory];

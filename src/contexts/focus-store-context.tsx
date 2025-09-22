@@ -25,6 +25,7 @@ type SessionState = {
   currentTask: string;
   currentTaskId: string | null;
   sessionEndTime: number | null; // UTC timestamp
+  remainingTimeOnPause: number | null; // seconds
 };
 
 type FocusState = {
@@ -42,7 +43,7 @@ type Action =
   | { type: 'REHYDRATE'; payload: FocusState }
   | { type: 'START_FOCUS'; payload: { taskName: string; duration: number } }
   | { type: 'PAUSE_FOCUS' }
-  | { type: 'RESUME_FOCUS'; payload: { newSessionEndTime: number } }
+  | { type: 'RESUME_FOCUS' }
   | { type: 'FINISH_SESSION' }
   | { type: 'RESET_SESSION' };
 
@@ -51,6 +52,7 @@ const initialSessionState: SessionState = {
   currentTask: '',
   currentTaskId: null,
   sessionEndTime: null,
+  remainingTimeOnPause: null,
 };
 
 const initialState: FocusState = {
@@ -79,6 +81,7 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         ...state,
         tasks: [...state.tasks, newTask],
         session: {
+          ...initialSessionState,
           appState: 'focusing',
           currentTask: taskName,
           currentTaskId: newTaskId,
@@ -87,23 +90,27 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
       };
     }
     case 'PAUSE_FOCUS': {
-      if (state.session.appState !== 'focusing') return state;
+      if (state.session.appState !== 'focusing' || !state.session.sessionEndTime) return state;
+      const remainingTime = (state.session.sessionEndTime - Date.now()) / 1000;
       return {
         ...state,
         session: {
           ...state.session,
           appState: 'paused',
+          remainingTimeOnPause: Math.max(0, remainingTime),
         },
       };
     }
     case 'RESUME_FOCUS': {
-      if (state.session.appState !== 'paused' || !state.session.sessionEndTime) return state;
+      if (state.session.appState !== 'paused' || state.session.remainingTimeOnPause === null) return state;
+      const newSessionEndTime = Date.now() + state.session.remainingTimeOnPause * 1000;
       return {
         ...state,
         session: {
           ...state.session,
           appState: 'focusing',
-          sessionEndTime: action.payload.newSessionEndTime,
+          sessionEndTime: newSessionEndTime,
+          remainingTimeOnPause: null,
         },
       };
     }
@@ -113,6 +120,7 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         session: {
           ...state.session,
           appState: 'finished',
+          remainingTimeOnPause: null,
         },
       };
     }
@@ -184,12 +192,15 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
     try {
       const storedState = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedState) {
-        const parsedState = JSON.parse(storedState);
-        // On rehydration, if a session was active, check if it has expired
-        if ((parsedState.session.appState === 'focusing' || parsedState.session.appState === 'paused') && parsedState.session.sessionEndTime) {
+        let parsedState = JSON.parse(storedState);
+        
+        // Backwards compatibility for old state shape
+        if (parsedState.session && parsedState.session.remainingTimeOnPause === undefined) {
+          parsedState.session.remainingTimeOnPause = null;
+        }
+
+        if (parsedState.session?.appState === 'focusing' && parsedState.session.sessionEndTime) {
             if (Date.now() > parsedState.session.sessionEndTime) {
-                // If the session was paused, we need to account for time offline.
-                // It's simplest to just end the session if the original end time has passed.
                 parsedState.session.appState = 'finished';
             }
         }
