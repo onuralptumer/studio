@@ -16,7 +16,6 @@ export type Task = {
 
 type Settings = {
   duration: number;
-  sound: boolean;
 };
 
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
@@ -38,7 +37,6 @@ type FocusState = {
 };
 
 type Action =
-  | { type: 'ADD_TASK'; payload: Task }
   | { type: 'COMPLETE_TASK'; payload: string }
   | { type: 'SET_SETTINGS'; payload: Settings }
   | { type: 'REMOVE_TASK'; payload: string }
@@ -63,7 +61,6 @@ const initialState: FocusState = {
   lastCompletedDate: null,
   settings: {
     duration: 25,
-    sound: false,
   },
   session: initialSessionState,
 };
@@ -99,22 +96,16 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         session: {
           ...state.session,
           appState: 'paused',
-          sessionEndTime: state.session.sessionEndTime, // This will be adjusted on resume
         },
       };
     }
     case 'RESUME_FOCUS': {
       if (state.session.appState !== 'paused' || !state.session.sessionEndTime) return state;
-       // When resuming, add the pause duration to the end time
-      const pausedAt = state.session.sessionEndTime; // Not really, but we need a timestamp
-      const newEndTime = Date.now() + (state.session.sessionEndTime - Date.now());
-
       return {
         ...state,
         session: {
           ...state.session,
           appState: 'focusing',
-          sessionEndTime: state.session.sessionEndTime, // Don't adjust time on resume for now, timer continues
         },
       };
     }
@@ -132,10 +123,6 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         ...state,
         session: initialSessionState,
       };
-    }
-    case 'ADD_TASK': {
-      // This is now handled by START_FOCUS, but kept for potential direct additions
-      return { ...state, tasks: [...state.tasks, action.payload] };
     }
     case 'COMPLETE_TASK': {
       const today = new Date();

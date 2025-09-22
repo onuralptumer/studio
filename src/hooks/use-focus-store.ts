@@ -2,7 +2,7 @@
 'use client';
 
 import { useContext } from 'react';
-import { FocusStoreContext, Task } from '@/contexts/focus-store-context';
+import { FocusStoreContext } from '@/contexts/focus-store-context';
 
 export const useFocusStore = () => {
   const context = useContext(FocusStoreContext);
@@ -31,10 +31,6 @@ export const useFocusStore = () => {
     dispatch({ type: 'RESET_SESSION' });
   };
 
-  const addTask = (task: Task) => {
-    dispatch({ type: 'ADD_TASK', payload: task });
-  };
-
   const completeTask = (taskId: string) => {
     dispatch({ type: 'COMPLETE_TASK', payload: taskId });
   };
@@ -43,7 +39,7 @@ export const useFocusStore = () => {
     dispatch({ type: 'REMOVE_TASK', payload: taskId });
   };
 
-  const setSettings = (settings: { duration: number; sound: boolean }) => {
+  const setSettings = (settings: { duration: number }) => {
     dispatch({ type: 'SET_SETTINGS', payload: settings });
   };
   
@@ -69,7 +65,6 @@ export const useFocusStore = () => {
     resumeFocus,
     finishSession,
     resetSession,
-    addTask,
     completeTask,
     removeTask,
     setSettings,
