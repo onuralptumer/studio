@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { History, Settings, LogOut } from 'lucide-react';
+import { History, Settings, LogOut, Sparkles } from 'lucide-react';
 import { Logo } from '@/components/icons';
 import { SettingsDialog } from './settings-dialog';
 import { RecapSheet } from './recap-sheet';
@@ -18,9 +18,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useFocusStore } from '@/hooks/use-focus-store';
+import { Badge } from '@/components/ui/badge';
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
+  const { plan } = useFocusStore();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRecapOpen, setIsRecapOpen] = useState(false);
 
@@ -71,7 +74,15 @@ export function AppHeader() {
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
+                      {plan === 'pro' && (
+                        <Badge variant="secondary" className="px-2 py-0.5 text-xs">
+                          <Sparkles className="mr-1 h-3 w-3" />
+                          Pro
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user.email}
                     </p>
