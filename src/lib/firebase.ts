@@ -1,5 +1,5 @@
 
-"use client";
+'use client';
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
@@ -8,6 +8,7 @@ import {
   indexedDBLocalPersistence,
   browserLocalPersistence
 } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -31,3 +32,4 @@ try {
 }
 
 export const auth = authInstance;
+export const db = getFirestore(app);

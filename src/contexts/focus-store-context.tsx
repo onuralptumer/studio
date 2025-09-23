@@ -1,10 +1,11 @@
 
 'use client';
 
-import React, { createContext, useReducer, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useReducer, useEffect, useState, ReactNode, useCallback } from 'react';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
-
-const LOCAL_STORAGE_KEY = 'oneTaskNowStore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/hooks/use-auth';
 
 export type Task = {
   id: string;
@@ -169,7 +170,6 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         tasks: state.tasks.filter(task => task.id !== action.payload),
       };
     case 'REHYDRATE':
-      // Ensure rehydrated state has all new properties
       return { ...initialState, ...action.payload };
     default:
       return state;
@@ -185,42 +185,58 @@ type FocusStoreContextType = {
 export const FocusStoreContext = createContext<FocusStoreContextType | undefined>(undefined);
 
 export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
   const [state, dispatch] = useReducer(focusReducer, initialState);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  useEffect(() => {
-    try {
-      const storedState = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (storedState) {
-        let parsedState = JSON.parse(storedState);
-        
-        // Backwards compatibility for old state shape
-        if (parsedState.session && parsedState.session.remainingTimeOnPause === undefined) {
-          parsedState.session.remainingTimeOnPause = null;
-        }
-
-        if (parsedState.session?.appState === 'focusing' && parsedState.session.sessionEndTime) {
-            if (Date.now() > parsedState.session.sessionEndTime) {
-                parsedState.session.appState = 'finished';
-            }
-        }
-        dispatch({ type: 'REHYDRATE', payload: parsedState });
+  const saveStateToFirestore = useCallback(async (currentState: FocusState) => {
+    if (user) {
+      try {
+        // We don't want to persist the session state in Firestore
+        const stateToSave = { ...currentState, session: initialSessionState };
+        await setDoc(doc(db, 'users', user.uid), stateToSave);
+      } catch (error) {
+        console.error("Failed to save state to Firestore", error);
       }
-    } catch (error) {
-      console.error("Failed to load state from localStorage", error);
     }
-    setIsInitialized(true);
-  }, []);
+  }, [user]);
+
+  useEffect(() => {
+    const loadStateFromFirestore = async () => {
+      if (user) {
+        const docRef = doc(db, 'users', user.uid);
+        try {
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const firestoreState = docSnap.data() as FocusState;
+            // Handle active sessions from previous page loads
+             if (firestoreState.session?.appState === 'focusing' && firestoreState.session.sessionEndTime) {
+                if (Date.now() > firestoreState.session.sessionEndTime) {
+                  firestoreState.session.appState = 'finished';
+                }
+            }
+            dispatch({ type: 'REHYDRATE', payload: firestoreState });
+          } else {
+            // New user, save initial state to create the document
+            await saveStateToFirestore(initialState);
+          }
+        } catch (error) {
+          console.error("Failed to load state from Firestore", error);
+        }
+      }
+      setIsInitialized(true);
+    };
+
+    if (!isInitialized) {
+      loadStateFromFirestore();
+    }
+  }, [user, isInitialized, saveStateToFirestore]);
 
   useEffect(() => {
     if (isInitialized) {
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
-      } catch (error) {
-        console.error("Failed to save state to localStorage", error);
-      }
+      saveStateToFirestore(state);
     }
-  }, [state, isInitialized]);
+  }, [state, isInitialized, saveStateToFirestore]);
 
   return (
     <FocusStoreContext.Provider value={{ state, dispatch, isInitialized }}>
