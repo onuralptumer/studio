@@ -14,7 +14,7 @@ const TaskSchema = z.object({
   id: z.string(),
   name: z.string(),
   status: z.enum(['attempted', 'completed']),
-  date: z.string().datetime(),
+  date: z.string(), // Kept as string, assuming ISO format
   duration: z.number(),
 });
 export type Task = z.infer<typeof TaskSchema>;
@@ -25,10 +25,10 @@ const SettingsSchema = z.object({
 export type Settings = z.infer<typeof SettingsSchema>;
 
 const FocusStateSchema = z.object({
-  tasks: z.array(TaskSchema),
+  tasks: z.array(TaskSchema).default([]),
   streak: z.number().default(0),
   lastCompletedDate: z.string().nullable().default(null),
-  settings: SettingsSchema,
+  settings: SettingsSchema.default({ duration: 25 }),
 });
 
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
@@ -42,6 +42,7 @@ type SessionState = {
 
 export type FocusState = z.infer<typeof FocusStateSchema> & {
   session: SessionState;
+  plan: 'free' | 'pro';
 };
 
 
@@ -54,7 +55,9 @@ type Action =
   | { type: 'FINISH_SESSION' }
   | { type: 'COMPLETE_TASK' }
   | { type: 'RETRY_TASK' }
-  | { type: 'SET_SETTINGS'; payload: Settings };
+  | { type: 'SET_SETTINGS'; payload: Settings }
+  | { type: 'SET_PLAN'; payload: 'free' | 'pro' }
+  | { type: 'REMOVE_TASK'; payload: string };
 
 
 const initialState: FocusState = {
@@ -64,6 +67,7 @@ const initialState: FocusState = {
   settings: {
     duration: 25,
   },
+  plan: 'free',
   session: {
     appState: 'idle',
     currentTask: '',
@@ -75,7 +79,8 @@ const initialState: FocusState = {
 const focusReducer = (state: FocusState, action: Action): FocusState => {
   switch (action.type) {
     case 'SET_STATE':
-      return { ...state, ...action.payload };
+      // Ensure settings has a default if it's missing from loaded data
+      return { ...state, ...action.payload, settings: action.payload.settings || initialState.settings };
 
     case 'START_FOCUS': {
       const { taskName, duration } = action.payload;
@@ -118,22 +123,22 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
     }
 
     case 'FINISH_SESSION': {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        name: state.session.currentTask,
-        status: 'attempted',
-        date: new Date().toISOString(),
-        duration: state.settings.duration,
-      };
-      return {
-        ...state,
-        tasks: [...state.tasks, newTask],
-        session: {
-          ...state.session,
-          appState: 'finished',
-          remainingTimeOnPause: null,
-        },
-      };
+        const newTask: Task = {
+            id: Date.now().toString(),
+            name: state.session.currentTask,
+            status: 'attempted',
+            date: new Date().toISOString(),
+            duration: state.settings.duration,
+        };
+        return {
+            ...state,
+            tasks: [...state.tasks, newTask],
+            session: {
+            ...state.session,
+            appState: 'finished',
+            remainingTimeOnPause: null,
+            },
+        };
     }
     
     case 'COMPLETE_TASK': {
@@ -146,6 +151,7 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
       const today = new Date();
       const todayStr = format(today, 'yyyy-MM-dd');
       let newStreak = state.streak;
+      let newLastCompletedDate = state.lastCompletedDate;
 
       if (!state.lastCompletedDate) {
         newStreak = 1;
@@ -154,15 +160,18 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         if (isYesterday(lastDate)) {
           newStreak += 1;
         } else if (!isToday(lastDate)) {
+          // If the last completion was not today or yesterday, reset the streak
           newStreak = 1;
         }
+        // If it was today, streak doesn't change
       }
+      newLastCompletedDate = todayStr;
       
       return {
         ...state,
         tasks: updatedTasks,
         streak: newStreak,
-        lastCompletedDate: todayStr,
+        lastCompletedDate: newLastCompletedDate,
         session: initialState.session,
       };
     }
@@ -176,6 +185,12 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
 
     case 'SET_SETTINGS':
       return { ...state, settings: action.payload };
+
+    case 'SET_PLAN':
+        return { ...state, plan: action.payload };
+
+    case 'REMOVE_TASK':
+        return { ...state, tasks: state.tasks.filter(t => t.id !== action.payload) };
 
     default:
       return state;
@@ -199,6 +214,7 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
   const saveStateToFirestore = useCallback(async (stateToSave: FocusState) => {
     if (!user) return;
     try {
+      // Omit session state before saving
       const { session, ...restOfState } = stateToSave;
       const docRef = doc(db, 'users', user.uid);
       await setDoc(docRef, restOfState);
@@ -209,13 +225,23 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
 
   // Effect to load state from Firestore
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
     const loadState = async () => {
       if (user) {
         const docRef = doc(db, 'users', user.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          const loadedState = FocusStateSchema.parse(docSnap.data());
-          dispatch({ type: 'SET_STATE', payload: loadedState });
+          // Use .safeParse to avoid throwing an error
+          const parseResult = FocusStateSchema.safeParse(docSnap.data());
+          if (parseResult.success) {
+            dispatch({ type: 'SET_STATE', payload: parseResult.data });
+          } else {
+            console.error("Zod validation failed:", parseResult.error);
+            // If validation fails, maybe start with a fresh state
+            await saveStateToFirestore(initialState);
+            dispatch({ type: 'SET_STATE', payload: initialState });
+          }
         } else {
           // For new users, save the initial state to create their document
           await saveStateToFirestore(initialState);
@@ -227,21 +253,22 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
         setIsInitialized(true);
       }
     };
+    
     loadState();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [user, saveStateToFirestore]);
 
   // Effect to automatically save state to Firestore whenever it changes
   useEffect(() => {
-    // We only save if the state has been initialized and there's a user.
-    // This prevents writing the default initial state over good data on app load.
     if (isInitialized && user) {
-      // Create a copy of the state without the session part for saving.
-      const { session, ...stateToSave } = state;
-      const docRef = doc(db, 'users', user.uid);
-      // setDoc is an "upsert" - it creates or overwrites.
-      setDoc(docRef, stateToSave);
+      saveStateToFirestore(state);
     }
-  }, [state, user, isInitialized]);
+  }, [state, user, isInitialized, saveStateToFirestore]);
 
 
   return (
