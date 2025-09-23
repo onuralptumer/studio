@@ -1,6 +1,4 @@
 
-'use client';
-
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -21,15 +19,13 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-let authInstance: ReturnType<typeof getAuth>;
+// Conditionally initialize auth only on the client
+const auth = typeof window !== 'undefined' 
+  ? initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+    }) 
+  : getAuth(app);
 
-try {
-  authInstance = getAuth(app);
-} catch (error) {
-  authInstance = initializeAuth(app, {
-    persistence: [indexedDBLocalPersistence, browserLocalPersistence]
-  });
-}
-
-export const auth = authInstance;
 export const db = getFirestore(app);
+
+export { auth };
