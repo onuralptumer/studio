@@ -170,7 +170,7 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         tasks: state.tasks.filter(task => task.id !== action.payload),
       };
     case 'REHYDRATE':
-      return { ...initialState, ...action.payload };
+      return { ...state, ...action.payload, session: initialState.session };
     default:
       return state;
   }
@@ -193,7 +193,7 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
     if (user) {
       try {
         // We don't want to persist the session state in Firestore
-        const stateToSave = { ...currentState, session: initialSessionState };
+        const { session, ...stateToSave } = currentState;
         await setDoc(doc(db, 'users', user.uid), stateToSave);
       } catch (error) {
         console.error("Failed to save state to Firestore", error);
@@ -209,12 +209,6 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             const firestoreState = docSnap.data() as FocusState;
-            // Handle active sessions from previous page loads
-             if (firestoreState.session?.appState === 'focusing' && firestoreState.session.sessionEndTime) {
-                if (Date.now() > firestoreState.session.sessionEndTime) {
-                  firestoreState.session.appState = 'finished';
-                }
-            }
             dispatch({ type: 'REHYDRATE', payload: firestoreState });
           } else {
             // New user, save initial state to create the document
@@ -227,16 +221,19 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
       setIsInitialized(true);
     };
 
-    if (!isInitialized) {
+    if (user && !isInitialized) {
       loadStateFromFirestore();
+    } else if (!user) {
+        // If user logs out, we are not 'initialized' for the new state.
+        setIsInitialized(false);
     }
   }, [user, isInitialized, saveStateToFirestore]);
 
   useEffect(() => {
-    if (isInitialized) {
+    if (isInitialized && user) {
       saveStateToFirestore(state);
     }
-  }, [state, isInitialized, saveStateToFirestore]);
+  }, [state, isInitialized, user, saveStateToFirestore]);
 
   return (
     <FocusStoreContext.Provider value={{ state, dispatch, isInitialized }}>
