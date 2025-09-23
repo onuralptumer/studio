@@ -28,7 +28,6 @@ export default function FocusFlowApp() {
     resumeFocus,
     finishSession,
     resetSession,
-    getStats,
     completeTask,
   } = useFocusStore();
   const { toast } = useToast();
@@ -93,12 +92,7 @@ export default function FocusFlowApp() {
   };
 
   const handleTaskDone = () => {
-    const stats = getStats();
-    const lastTask = stats.tasks.find(t => t.id === session.currentTaskId);
-    if (lastTask) {
-      completeTask(lastTask.id);
-    }
-    resetSession();
+    completeTask();
   };
   
   const handleRetry = () => {
