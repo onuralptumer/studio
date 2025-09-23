@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useReducer, useEffect, useState, ReactNode, useCallback } from 'react';
-import { doc, getDoc, setDoc, addDoc, updateDoc, collection, query, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, onSnapshot, Unsubscribe, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { z } from 'zod';
@@ -32,10 +32,6 @@ const UserProfileSchema = z.object({
 });
 type UserProfile = z.infer<typeof UserProfileSchema>;
 
-const FocusStateSchema = UserProfileSchema.extend({
-  tasks: z.array(TaskSchema).default([]),
-});
-
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
 
 type SessionState = {
@@ -58,13 +54,10 @@ type Action =
   | { type: 'START_FOCUS'; payload: { taskName: string; duration: number } }
   | { type: 'PAUSE_FOCUS' }
   | { type: 'RESUME_FOCUS' }
-  | { type: 'ADD_TASK'; payload: Task }
-  | { type: 'UPDATE_TASK_STATUS'; payload: { id: string; status: 'completed' } }
   | { type: 'SET_STREAK_DATA'; payload: { streak: number, lastCompletedDate: string | null }}
   | { type: 'RESET_SESSION' }
-  | { type: 'SET_SETTINGS'; payload: Settings }
-  | { type: 'SET_PLAN'; payload: 'free' | 'pro' }
-  | { type: 'REMOVE_TASK_LOCALLY'; payload: string };
+  | { type: 'RESET_SESSION_AFTER_FINISH' }
+  | { type: 'SET_SETTINGS'; payload: Settings };
 
 
 const initialState: FocusState = {
@@ -130,27 +123,6 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
       };
     }
     
-    case 'ADD_TASK':
-        return {
-            ...state,
-            tasks: [...state.tasks, action.payload],
-            session: {
-                ...state.session,
-                appState: 'finished',
-                remainingTimeOnPause: null,
-            },
-        };
-    
-    case 'UPDATE_TASK_STATUS': {
-        const updatedTasks = state.tasks.map(task => 
-            task.id === action.payload.id ? { ...task, status: action.payload.status } : task
-        );
-        return {
-            ...state,
-            tasks: updatedTasks,
-        };
-    }
-
     case 'SET_STREAK_DATA':
         return {
             ...state,
@@ -161,14 +133,17 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
     case 'RESET_SESSION':
         return { ...state, session: initialState.session };
 
+    case 'RESET_SESSION_AFTER_FINISH':
+      return { 
+        ...state, 
+        session: {
+          ...state.session,
+          appState: 'finished',
+        }
+      };
+
     case 'SET_SETTINGS':
       return { ...state, settings: action.payload };
-
-    case 'SET_PLAN':
-        return { ...state, plan: action.payload };
-
-    case 'REMOVE_TASK_LOCALLY':
-        return { ...state, tasks: state.tasks.filter(t => t.id !== action.payload) };
 
     default:
       return state;
