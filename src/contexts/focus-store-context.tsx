@@ -34,12 +34,14 @@ type UserProfile = z.infer<typeof UserProfileSchema>;
 
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
 
-type SessionState = {
-  appState: AppState;
-  currentTask: string;
-  sessionEndTime: number | null; // UTC timestamp
-  remainingTimeOnPause: number | null; // seconds
-};
+const SessionStateSchema = z.object({
+  appState: z.enum(['idle', 'focusing', 'paused', 'finished']),
+  currentTask: z.string(),
+  sessionEndTime: z.number().nullable(),
+  remainingTimeOnPause: z.number().nullable(),
+});
+
+type SessionState = z.infer<typeof SessionStateSchema>;
 
 export type FocusState = UserProfile & {
   tasks: Task[];
@@ -57,7 +59,8 @@ type Action =
   | { type: 'SET_STREAK_DATA'; payload: { streak: number, lastCompletedDate: string | null }}
   | { type: 'RESET_SESSION' }
   | { type: 'RESET_SESSION_AFTER_FINISH' }
-  | { type: 'SET_SETTINGS'; payload: Settings };
+  | { type: 'SET_SETTINGS'; payload: Settings }
+  | { type: 'SET_SESSION'; payload: SessionState };
 
 
 const initialState: FocusState = {
@@ -144,6 +147,9 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
 
     case 'SET_SETTINGS':
       return { ...state, settings: action.payload };
+    
+    case 'SET_SESSION':
+      return { ...state, session: action.payload };
 
     default:
       return state;
@@ -158,6 +164,7 @@ type FocusStoreContextType = {
 
 export const FocusStoreContext = createContext<FocusStoreContextType | undefined>(undefined);
 
+const LOCAL_STORAGE_SESSION_KEY = 'oneTaskNow.session';
 
 export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
@@ -181,10 +188,9 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
-  // Effect to load state from Firestore
+  // Effect to load state from Firestore and session from localStorage
   useEffect(() => {
     if (!user) {
-      // No user, reset to initial state and mark as initialized
       dispatch({ type: 'SET_PROFILE', payload: initialState });
       dispatch({ type: 'SET_TASKS', payload: [] });
       setIsInitialized(true);
@@ -195,6 +201,26 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
     let tasksUnsubscribe: Unsubscribe | undefined;
 
     const loadState = async () => {
+      // Load session from localStorage
+      try {
+        const storedSession = localStorage.getItem(LOCAL_STORAGE_SESSION_KEY);
+        if (storedSession) {
+          const parsedSession = SessionStateSchema.safeParse(JSON.parse(storedSession));
+          if (parsedSession.success) {
+             // If session ended while tab was closed, move to finished state
+            if (parsedSession.data.appState === 'focusing' && parsedSession.data.sessionEndTime && parsedSession.data.sessionEndTime < Date.now()) {
+                dispatch({ type: 'RESET_SESSION_AFTER_FINISH' });
+            } else {
+                dispatch({ type: 'SET_SESSION', payload: parsedSession.data });
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load session from localStorage", e);
+        localStorage.removeItem(LOCAL_STORAGE_SESSION_KEY);
+      }
+
+
       // Listen to user profile
       const profileDocRef = doc(db, 'users', user.uid);
       profileUnsubscribe = onSnapshot(profileDocRef, (docSnap) => {
@@ -210,7 +236,7 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
         } else {
           saveProfileToFirestore(initialState);
         }
-        setIsInitialized(true); // Mark as initialized after profile is processed
+        setIsInitialized(true);
       });
 
       // Listen to tasks subcollection
@@ -240,11 +266,25 @@ export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
   // Effect to automatically save profile to Firestore whenever relevant parts change
   useEffect(() => {
     if (isInitialized && user) {
-        // We only save the profile part, as tasks are now handled by their own actions.
         saveProfileToFirestore(state);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.settings, state.streak, state.plan, state.lastCompletedDate, user, isInitialized, saveProfileToFirestore]);
+
+  // Effect to save session to localStorage
+  useEffect(() => {
+    if (isInitialized) {
+        try {
+            if (state.session.appState === 'idle' || state.session.appState === 'finished') {
+                localStorage.removeItem(LOCAL_STORAGE_SESSION_KEY);
+            } else {
+                localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, JSON.stringify(state.session));
+            }
+        } catch (e) {
+            console.error("Failed to save session to localStorage", e);
+        }
+    }
+  }, [state.session, isInitialized]);
 
 
   return (

@@ -33,7 +33,7 @@ export const useFocusStore = () => {
     if (!user) return;
 
     // Logic to enforce task limit for free users
-    if (state.plan === 'free' && state.tasks.length >= 25) {
+    if (state.plan === 'free' && state.tasks.length >= 10) {
       try {
         const tasksColRef = collection(db, 'users', user.uid, 'tasks');
         const q = query(tasksColRef, orderBy('date', 'asc'), limit(1));
