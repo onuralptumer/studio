@@ -2,103 +2,94 @@
 'use client';
 
 import React, { createContext, useReducer, useEffect, useState, ReactNode, useCallback } from 'react';
-import { format, isToday, isYesterday, parseISO } from 'date-fns';
-import { doc, getDoc, setDoc, collection, query, onSnapshot, addDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
+import { z } from 'zod';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
 
-export type Task = {
-  id: string;
-  name: string;
-  status: 'attempted' | 'completed';
-  date: string; // ISO string
-  duration: number; // in minutes
-};
 
-type Settings = {
-  duration: number;
-};
+// Data Structures & Zod Schemas for validation
+const TaskSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  status: z.enum(['attempted', 'completed']),
+  date: z.string().datetime(),
+  duration: z.number(),
+});
+export type Task = z.infer<typeof TaskSchema>;
+
+const SettingsSchema = z.object({
+  duration: z.number().min(1).max(120),
+});
+export type Settings = z.infer<typeof SettingsSchema>;
+
+const FocusStateSchema = z.object({
+  tasks: z.array(TaskSchema),
+  streak: z.number().default(0),
+  lastCompletedDate: z.string().nullable().default(null),
+  settings: SettingsSchema,
+});
 
 type AppState = 'idle' | 'focusing' | 'paused' | 'finished';
 
 type SessionState = {
   appState: AppState;
   currentTask: string;
-  currentTaskId: string | null;
   sessionEndTime: number | null; // UTC timestamp
   remainingTimeOnPause: number | null; // seconds
 };
 
-type UserProfile = {
-  plan: 'free' | 'pro';
-  streak: number;
-  lastCompletedDate: string | null; // ISO string date part
-  settings: Settings;
-};
-
-type FocusState = UserProfile & {
-  tasks: Task[];
+export type FocusState = z.infer<typeof FocusStateSchema> & {
   session: SessionState;
 };
 
 
+// Actions
 type Action =
-  | { type: 'SET_USER_PROFILE'; payload: UserProfile }
-  | { type: 'SET_TASKS'; payload: Task[] }
-  | { type: 'ADD_OR_UPDATE_TASK'; payload: Task }
-  | { type: 'REMOVE_TASK_SUCCESS'; payload: string }
-  | { type: 'SET_SETTINGS'; payload: Settings }
+  | { type: 'SET_STATE'; payload: z.infer<typeof FocusStateSchema> }
   | { type: 'START_FOCUS'; payload: { taskName: string; duration: number } }
   | { type: 'PAUSE_FOCUS' }
   | { type: 'RESUME_FOCUS' }
   | { type: 'FINISH_SESSION' }
-  | { type: 'RESET_SESSION' }
-  | { type: 'COMPLETE_SESSION_SUCCESS'; payload: { taskId: string; newProfile: Partial<UserProfile> } };
+  | { type: 'COMPLETE_TASK' }
+  | { type: 'RETRY_TASK' }
+  | { type: 'SET_SETTINGS'; payload: Settings };
 
-
-const initialSessionState: SessionState = {
-  appState: 'idle',
-  currentTask: '',
-  currentTaskId: null,
-  sessionEndTime: null,
-  remainingTimeOnPause: null,
-};
 
 const initialState: FocusState = {
   tasks: [],
-  plan: 'free',
   streak: 0,
   lastCompletedDate: null,
   settings: {
     duration: 25,
   },
-  session: initialSessionState,
+  session: {
+    appState: 'idle',
+    currentTask: '',
+    sessionEndTime: null,
+    remainingTimeOnPause: null,
+  },
 };
 
 const focusReducer = (state: FocusState, action: Action): FocusState => {
   switch (action.type) {
+    case 'SET_STATE':
+      return { ...state, ...action.payload };
+
     case 'START_FOCUS': {
       const { taskName, duration } = action.payload;
-      const newTaskId = Date.now().toString(); // Temporary ID, will be replaced by Firestore ID
-      const newTask: Task = {
-        id: newTaskId,
-        name: taskName,
-        status: 'attempted',
-        date: new Date().toISOString(),
-        duration: duration,
-      };
       return {
         ...state,
-        tasks: [...state.tasks, newTask],
         session: {
-          ...initialSessionState,
+          ...initialState.session,
           appState: 'focusing',
           currentTask: taskName,
-          currentTaskId: newTaskId,
           sessionEndTime: Date.now() + duration * 60 * 1000,
         },
       };
     }
+
     case 'PAUSE_FOCUS': {
       if (state.session.appState !== 'focusing' || !state.session.sessionEndTime) return state;
       const remainingTime = (state.session.sessionEndTime - Date.now()) / 1000;
@@ -111,6 +102,7 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         },
       };
     }
+
     case 'RESUME_FOCUS': {
       if (state.session.appState !== 'paused' || state.session.remainingTimeOnPause === null) return state;
       const newSessionEndTime = Date.now() + state.session.remainingTimeOnPause * 1000;
@@ -124,9 +116,18 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         },
       };
     }
+
     case 'FINISH_SESSION': {
+      const newTask: Task = {
+        id: Date.now().toString(),
+        name: state.session.currentTask,
+        status: 'attempted',
+        date: new Date().toISOString(),
+        duration: state.settings.duration,
+      };
       return {
         ...state,
+        tasks: [...state.tasks, newTask],
         session: {
           ...state.session,
           appState: 'finished',
@@ -134,52 +135,47 @@ const focusReducer = (state: FocusState, action: Action): FocusState => {
         },
       };
     }
-    case 'RESET_SESSION': {
-      // If the task was only attempted, remove it from the list
-      const newTasks = state.tasks.filter(task => {
-        if (task.id === state.session.currentTaskId) {
-            return task.status === 'completed';
-        }
-        return true;
-      });
+    
+    case 'COMPLETE_TASK': {
+      const lastTask = state.tasks[state.tasks.length - 1];
+      if (!lastTask || lastTask.status === 'completed') return state;
 
+      const updatedTasks = [...state.tasks];
+      updatedTasks[updatedTasks.length - 1] = { ...lastTask, status: 'completed' };
+      
+      const today = new Date();
+      const todayStr = format(today, 'yyyy-MM-dd');
+      let newStreak = state.streak;
+
+      if (!state.lastCompletedDate) {
+        newStreak = 1;
+      } else {
+        const lastDate = parseISO(state.lastCompletedDate);
+        if (isYesterday(lastDate)) {
+          newStreak += 1;
+        } else if (!isToday(lastDate)) {
+          newStreak = 1;
+        }
+      }
+      
       return {
         ...state,
-        tasks: newTasks,
-        session: initialSessionState,
+        tasks: updatedTasks,
+        streak: newStreak,
+        lastCompletedDate: todayStr,
+        session: initialState.session,
       };
     }
-    case 'COMPLETE_SESSION_SUCCESS': {
-        const { taskId, newProfile } = action.payload;
-        return {
-            ...state,
-            ...newProfile,
-            tasks: state.tasks.map(t => t.id === taskId ? { ...t, status: 'completed' } : t),
-        };
-    }
-    case 'SET_USER_PROFILE':
-      return { ...state, ...action.payload, session: state.session }; // Keep session state during rehydration
-    
-    case 'SET_TASKS':
-      return { ...state, tasks: action.payload };
 
-    case 'ADD_OR_UPDATE_TASK': {
-        const existingTaskIndex = state.tasks.findIndex(t => t.id === action.payload.id);
-        let newTasks;
-        if (existingTaskIndex > -1) {
-            newTasks = [...state.tasks];
-            newTasks[existingTaskIndex] = action.payload;
-        } else {
-            newTasks = [...state.tasks, action.payload];
-        }
-        return { ...state, tasks: newTasks };
+    case 'RETRY_TASK': {
+      return {
+        ...state,
+        session: initialState.session,
+      };
     }
 
     case 'SET_SETTINGS':
-        return { ...state, settings: action.payload };
-    
-    case 'REMOVE_TASK_SUCCESS':
-        return { ...state, tasks: state.tasks.filter(t => t.id !== action.payload) };
+      return { ...state, settings: action.payload };
 
     default:
       return state;
@@ -194,130 +190,58 @@ type FocusStoreContextType = {
 
 export const FocusStoreContext = createContext<FocusStoreContextType | undefined>(undefined);
 
+
 export const FocusStoreProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [state, dispatch] = useReducer(focusReducer, initialState);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  useEffect(() => {
-    if (user && !isInitialized) {
-      const userDocRef = doc(db, 'users', user.uid);
-      
-      // Listen for user profile changes
-      const unsubscribeProfile = onSnapshot(userDocRef, async (docSnap) => {
-        if (docSnap.exists()) {
-          dispatch({ type: 'SET_USER_PROFILE', payload: docSnap.data() as UserProfile });
-        } else {
-          // Create a new user profile document
-          const newUserProfile: UserProfile = {
-            plan: 'free',
-            streak: 0,
-            lastCompletedDate: null,
-            settings: { duration: 25 },
-          };
-          await setDoc(userDocRef, newUserProfile);
-          dispatch({ type: 'SET_USER_PROFILE', payload: newUserProfile });
-        }
-        setIsInitialized(true);
-      }, (error) => {
-        console.error("Error listening to user profile:", error);
-        setIsInitialized(true); // Still initialize on error to not block UI
-      });
-
-      // Listen for task changes
-      const tasksColRef = collection(db, 'users', user.uid, 'tasks');
-      const q = query(tasksColRef);
-      const unsubscribeTasks = onSnapshot(q, (querySnapshot) => {
-        const tasks: Task[] = [];
-        querySnapshot.forEach((doc) => {
-          tasks.push({ id: doc.id, ...doc.data() } as Task);
-        });
-        dispatch({ type: 'SET_TASKS', payload: tasks });
-      });
-
-      return () => {
-        unsubscribeProfile();
-        unsubscribeTasks();
-        setIsInitialized(false);
-        dispatch({ type: 'SET_USER_PROFILE', payload: initialState }); // Reset state on logout
-        dispatch({ type: 'SET_TASKS', payload: [] });
-      };
-    } else if (!user) {
-      setIsInitialized(true); // No user, so we are "initialized" with empty state
+  const saveStateToFirestore = useCallback(async (stateToSave: FocusState) => {
+    if (!user) return;
+    try {
+      const { session, ...restOfState } = stateToSave;
+      const docRef = doc(db, 'users', user.uid);
+      await setDoc(docRef, restOfState);
+    } catch (error) {
+      console.error("Failed to save state to Firestore:", error);
     }
   }, [user]);
 
-  // Effect to save settings
+  // Effect to load state from Firestore
   useEffect(() => {
-    if (isInitialized && user && state.plan) { // state.plan is a proxy for loaded state
-      const userDocRef = doc(db, 'users', user.uid);
-      updateDoc(userDocRef, { settings: state.settings });
-    }
-  }, [state.settings, user, isInitialized]);
-  
-  // Effect to handle completing a task
-  useEffect(() => {
-    const completeTaskAsync = async () => {
-        if (state.session.appState === 'finished' && state.session.currentTaskId && user) {
-            const tempTaskId = state.session.currentTaskId;
-            const task = state.tasks.find(t => t.id === tempTaskId);
-
-            if (task && task.status === 'attempted') {
-                const batch = writeBatch(db);
-
-                // 1. Add the new task to the 'tasks' subcollection
-                const tasksColRef = collection(db, 'users', user.uid, 'tasks');
-                const newTaskRef = doc(tasksColRef); // Auto-generate ID
-                batch.set(newTaskRef, {
-                    name: task.name,
-                    status: 'completed', // Mark as completed
-                    date: task.date,
-                    duration: task.duration,
-                });
-                
-                // 2. Calculate new streak and update user profile
-                const today = new Date();
-                const todayStr = format(today, 'yyyy-MM-dd');
-                let newStreak = state.streak;
-                let newLastCompletedDate = state.lastCompletedDate;
-                
-                if (!state.lastCompletedDate) {
-                    newStreak = 1;
-                    newLastCompletedDate = todayStr;
-                } else {
-                    const lastDate = parseISO(state.lastCompletedDate);
-                    if (isYesterday(lastDate)) {
-                        newStreak += 1;
-                        newLastCompletedDate = todayStr;
-                    } else if (!isToday(lastDate)) {
-                        newStreak = 1;
-                        newLastCompletedDate = todayStr;
-                    }
-                }
-                
-                const userDocRef = doc(db, 'users', user.uid);
-                const newProfile: Partial<UserProfile> = {
-                    streak: newStreak,
-                    lastCompletedDate: newLastCompletedDate,
-                };
-                batch.update(userDocRef, newProfile);
-                
-                // 3. Commit batch
-                await batch.commit();
-                
-                // 4. Update local state
-                dispatch({
-                    type: 'COMPLETE_SESSION_SUCCESS',
-                    payload: { taskId: tempTaskId, newProfile }
-                });
-            }
+    const loadState = async () => {
+      if (user) {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const loadedState = FocusStateSchema.parse(docSnap.data());
+          dispatch({ type: 'SET_STATE', payload: loadedState });
+        } else {
+          // For new users, save the initial state to create their document
+          await saveStateToFirestore(initialState);
         }
+        setIsInitialized(true);
+      } else {
+        // No user, reset to initial state and mark as initialized
+        dispatch({ type: 'SET_STATE', payload: initialState });
+        setIsInitialized(true);
+      }
     };
-    
-    // This logic now resides with the button click in the component.
-    // The effect could be used for other real-time updates if needed.
+    loadState();
+  }, [user, saveStateToFirestore]);
 
-  }, [state.session.appState, state.session.currentTaskId, user, state.tasks, state.streak, state.lastCompletedDate]);
+  // Effect to automatically save state to Firestore whenever it changes
+  useEffect(() => {
+    // We only save if the state has been initialized and there's a user.
+    // This prevents writing the default initial state over good data on app load.
+    if (isInitialized && user) {
+      // Create a copy of the state without the session part for saving.
+      const { session, ...stateToSave } = state;
+      const docRef = doc(db, 'users', user.uid);
+      // setDoc is an "upsert" - it creates or overwrites.
+      setDoc(docRef, stateToSave);
+    }
+  }, [state, user, isInitialized]);
 
 
   return (

@@ -27,8 +27,8 @@ export default function FocusFlowApp() {
     pauseFocus,
     resumeFocus,
     finishSession,
-    resetSession,
     completeTask,
+    retryTask
   } = useFocusStore();
   const { toast } = useToast();
 
@@ -89,14 +89,6 @@ export default function FocusFlowApp() {
     }
     scheduleNudges();
     startFocus(taskInput);
-  };
-
-  const handleTaskDone = () => {
-    completeTask();
-  };
-  
-  const handleRetry = () => {
-    resetSession();
   };
 
   const formatTime = (seconds: number) => {
@@ -236,10 +228,10 @@ export default function FocusFlowApp() {
               <CardDescription>Nice work. Take a short break.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <Button size="lg" onClick={handleTaskDone} className="h-12 text-lg">
+              <Button size="lg" onClick={completeTask} className="h-12 text-lg">
                 <Check className="mr-2" /> Mark as Done
               </Button>
-              <Button variant="secondary" size="lg" onClick={handleRetry} className="h-12 text-lg">
+              <Button variant="secondary" size="lg" onClick={retryTask} className="h-12 text-lg">
                 <Repeat className="mr-2" /> Retry Later
               </Button>
             </CardContent>
