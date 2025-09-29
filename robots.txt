@@ -1,0 +1,18 @@
+# robots.txt for onetasknow.com
+# Last updated: 2025-09-29
+
+User-agent: *
+# Allow main content
+Allow: /
+
+# Block non-SEO friendly or duplicate routes
+Disallow: /login
+Disallow: /signup
+Disallow: /dashboard
+Disallow: /account
+Disallow: /settings
+Disallow: /terms
+Disallow: /privacy
+
+# Sitemap location (make sure sitemap.xml exists at this path)
+Sitemap: https://onetasknow.com/sitemap.xml
