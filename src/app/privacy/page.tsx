@@ -86,7 +86,7 @@ export default function PrivacyPage() {
                 </h2>
                 <ul className="list-disc space-y-2 pl-6">
                   <li>
-                    Data is stored securely on Vercel servers.
+                    Data is stored securely on Google servers.
                   </li>
                   <li>
                     Sensitive info (like email) is encrypted in transit and at
