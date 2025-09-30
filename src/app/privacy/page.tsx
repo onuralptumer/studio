@@ -152,6 +152,9 @@ export default function PrivacyPage() {
             >
               Terms
             </Link>
+             <Link href="/feedback" className="text-sm text-muted-foreground hover:text-foreground">
+              Feedback
+            </Link>
           </div>
         </div>
       </footer>
