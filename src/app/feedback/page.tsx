@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Logo } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
@@ -13,6 +15,8 @@ import { submitFeedback } from './actions';
 
 export default function FeedbackPage() {
   const { user } = useAuth();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -20,10 +24,10 @@ export default function FeedbackPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (feedback.trim().length < 10) {
+    if (feedback.trim().length < 10 || name.trim() === '' || email.trim() === '') {
       toast({
-        title: 'Feedback too short',
-        description: 'Please provide a bit more detail in your feedback.',
+        title: 'Incomplete Form',
+        description: 'Please fill out all fields before submitting.',
         variant: 'destructive',
       });
       return;
@@ -31,14 +35,16 @@ export default function FeedbackPage() {
     setIsLoading(true);
     try {
       await submitFeedback({
+        name,
+        email,
         content: feedback,
         userId: user?.uid || null,
       });
       setIsSubmitted(true);
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Could not submit your feedback. Please try again later.',
+        description: error.message || 'Could not submit your feedback. Please try again later.',
         variant: 'destructive',
       });
     } finally {
@@ -73,13 +79,40 @@ export default function FeedbackPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Textarea
-                placeholder="Tell us what you think..."
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                rows={6}
-                required
-              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="Your Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="feedback">Feedback</Label>
+                <Textarea
+                  id="feedback"
+                  placeholder="Tell us what you think..."
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  rows={6}
+                  required
+                />
+              </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? 'Submitting...' : 'Submit Feedback'}
               </Button>
