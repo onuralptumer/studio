@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { FocusBubble } from '@/components/app/focus-bubble';
 import { useFocusStore } from '@/hooks/use-focus-store';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Repeat } from 'lucide-react';
+import { Check, Repeat, Sparkles } from 'lucide-react';
 import { NudgeMessages } from '@/lib/nudges';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -31,6 +31,7 @@ export default function FocusFlowApp() {
     completeTask,
     retryTask,
     plan,
+    todaysSessionCount,
   } = useFocusStore();
   const { toast } = useToast();
 
@@ -39,6 +40,15 @@ export default function FocusFlowApp() {
 
   const nudgeTimestamps = useRef<number[]>([]);
   const nextNudgeIndex = useRef(0);
+  
+  const maxDuration = plan === 'pro' ? 120 : 15;
+  const isFreeLimitReached = plan === 'free' && todaysSessionCount >= 5;
+
+  useEffect(() => {
+    if (settings.duration > maxDuration) {
+      setSettings({ ...settings, duration: maxDuration });
+    }
+  }, [plan, settings, setSettings, maxDuration]);
 
   useEffect(() => {
     if (isInitialized) {
@@ -81,6 +91,14 @@ export default function FocusFlowApp() {
   }, [settings.duration]);
 
   const startTimer = () => {
+    if (isFreeLimitReached) {
+       toast({
+        title: 'Daily Limit Reached',
+        description: 'Upgrade to Pro for unlimited sessions.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (taskInput.trim() === '') {
       toast({
         title: 'No Task Entered',
@@ -196,15 +214,26 @@ export default function FocusFlowApp() {
                   <Slider
                     id="duration"
                     min={1}
-                    max={60}
+                    max={maxDuration}
                     step={1}
-                    value={[settings.duration]}
+                    value={[settings.duration > maxDuration ? maxDuration : settings.duration]}
                     onValueChange={(value) => setSettings({ ...settings, duration: value[0] })}
                   />
                 </div>
-                <Button type="submit" size="lg" className="h-12 text-lg">
+                <Button type="submit" size="lg" className="h-12 text-lg" disabled={isFreeLimitReached}>
                   Start Focusing
                 </Button>
+                {isFreeLimitReached && (
+                    <Card className="mt-2 border-primary/20 bg-primary/5 p-4">
+                        <div className="flex items-center justify-center text-center">
+                            <Sparkles className="h-5 w-5 mr-3 text-primary" />
+                            <div>
+                                <p className="font-semibold">You've reached your daily limit.</p>
+                                <p className="text-sm text-muted-foreground">Upgrade to Pro for unlimited sessions.</p>
+                            </div>
+                        </div>
+                    </Card>
+                )}
               </form>
             </CardContent>
           </Card>

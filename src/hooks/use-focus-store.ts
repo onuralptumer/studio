@@ -5,7 +5,7 @@ import { useContext } from 'react';
 import { FocusStoreContext, Settings, Task } from '@/contexts/focus-store-context';
 import { useAuth } from './use-auth';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, updateDoc, deleteDoc, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 
 
@@ -32,7 +32,7 @@ export const useFocusStore = () => {
   const finishSession = async () => {
     if (!user) return;
 
-    // Logic to enforce task limit for free users
+    // Logic to enforce task history limit for free users
     if (state.plan === 'free' && state.tasks.length >= 10) {
       try {
         const tasksColRef = collection(db, 'users', user.uid, 'tasks');
@@ -40,10 +40,11 @@ export const useFocusStore = () => {
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           const oldestTaskDoc = querySnapshot.docs[0];
-          await deleteDoc(doc(db, 'users', user.uid, 'tasks', oldestTaskDoc.id));
+          // We are removing this feature, but the logic stays to not break anything for now.
+          // await deleteDoc(doc(db, 'users', user.uid, 'tasks', oldestTaskDoc.id));
         }
       } catch (error) {
-        console.error("Error deleting oldest task:", error);
+        console.error("Error managing task history:", error);
       }
     }
 
@@ -55,7 +56,6 @@ export const useFocusStore = () => {
     };
     try {
         const tasksColRef = collection(db, 'users', user.uid, 'tasks');
-        // The new task is added, and the listener in the context will update the state.
         await addDoc(tasksColRef, newTask);
         dispatch({ type: 'RESET_SESSION_AFTER_FINISH' });
     } catch (error) {
@@ -65,7 +65,6 @@ export const useFocusStore = () => {
 
   const completeTask = async () => {
     if (!user) return;
-    // Find the most recently added 'attempted' task
     const lastTask = [...state.tasks]
       .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
       .find(t => t.status === 'attempted');
@@ -73,12 +72,9 @@ export const useFocusStore = () => {
     if (!lastTask) return;
 
     try {
-        // 1. Update the task status in Firestore
         const taskDocRef = doc(db, 'users', user.uid, 'tasks', lastTask.id);
         await updateDoc(taskDocRef, { status: 'completed' });
         
-        // 2. The local state will update automatically via the onSnapshot listener.
-        // Now calculate streak.
         const today = new Date();
         const todayStr = format(today, 'yyyy-MM-dd');
         let newStreak = state.streak;
@@ -94,10 +90,7 @@ export const useFocusStore = () => {
             }
         }
         
-        // 3. Update streak and last date locally. This will be saved automatically.
         dispatch({ type: 'SET_STREAK_DATA', payload: { streak: newStreak, lastCompletedDate: todayStr } });
-
-        // 4. Reset the session state
         dispatch({ type: 'RESET_SESSION' });
 
     } catch (error) {
@@ -129,6 +122,8 @@ export const useFocusStore = () => {
     };
   };
 
+  const todaysSessionCount = state.tasks.filter(task => isToday(parseISO(task.date))).length;
+
   return {
     isInitialized,
     ...state,
@@ -141,5 +136,6 @@ export const useFocusStore = () => {
     setSettings,
     stopFocus,
     getStats,
+    todaysSessionCount,
   };
 };
