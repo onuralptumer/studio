@@ -29,6 +29,10 @@ export function RecapSheet({
   const todaysTasks = stats.tasks.filter(task => format(parseISO(task.date), 'yyyy-MM-dd') === todayString);
   const completedToday = todaysTasks.filter(t => t.status === 'completed').length;
 
+  const sortedTasks = [...stats.tasks]
+    .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
+    .slice(0, 10);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md">
@@ -84,9 +88,9 @@ export function RecapSheet({
                 <CardTitle>Recent Tasks</CardTitle>
               </CardHeader>
               <CardContent>
-                {stats.tasks.length > 0 ? (
+                {sortedTasks.length > 0 ? (
                   <ul className="space-y-3">
-                    {stats.tasks.slice(-10).reverse().map(task => (
+                    {sortedTasks.map(task => (
                       <li key={task.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           {task.status === 'completed' ? (
