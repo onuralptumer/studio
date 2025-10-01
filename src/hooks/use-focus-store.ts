@@ -113,17 +113,6 @@ export const useFocusStore = () => {
     dispatch({ type: 'SET_SETTINGS', payload: settings });
   };
 
-  const removeTask = async (taskId: string) => {
-    if (!user) return;
-    try {
-        const taskDocRef = doc(db, 'users', user.uid, 'tasks', taskId);
-        await deleteDoc(taskDocRef);
-        // The onSnapshot listener in the provider will handle the local state update
-    } catch (error) {
-        console.error("Error deleting task:", error);
-    }
-  };
-
   const stopFocus = () => {
     dispatch({ type: 'RESET_SESSION' });
   };
@@ -150,7 +139,6 @@ export const useFocusStore = () => {
     completeTask,
     retryTask,
     setSettings,
-    removeTask,
     stopFocus,
     getStats,
   };

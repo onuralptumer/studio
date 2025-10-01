@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -9,10 +10,9 @@ import {
 } from '@/components/ui/sheet';
 import { useFocusStore } from '@/hooks/use-focus-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Zap, Clock, Trash2 } from 'lucide-react';
+import { CheckCircle, Zap, Clock } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, parseISO } from 'date-fns';
-import { Button } from '@/components/ui/button';
 
 export function RecapSheet({
   open,
@@ -21,7 +21,7 @@ export function RecapSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { getStats, removeTask } = useFocusStore();
+  const { getStats } = useFocusStore();
   const stats = getStats();
 
   const today = new Date();
@@ -94,22 +94,11 @@ export function RecapSheet({
                           ) : (
                             <Clock className="h-4 w-4 text-muted-foreground" />
                           )}
-                          <span className="truncate max-w-[150px]">{task.name}</span>
+                          <span className="truncate max-w-[200px]">{task.name}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground text-xs">
-                            {format(parseISO(task.date), 'MMM d')}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => removeTask(task.id)}
-                            aria-label="Remove task"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
+                        <span className="text-muted-foreground text-xs">
+                          {format(parseISO(task.date), 'MMM d')}
+                        </span>
                       </li>
                     ))}
                   </ul>
