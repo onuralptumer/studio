@@ -98,10 +98,10 @@ export function RecapSheet({
                           ) : (
                             <Clock className="h-4 w-4 text-muted-foreground" />
                           )}
-                          <span className="truncate max-w-[200px]">{task.name}</span>
+                          <span className="truncate max-w-[150px] sm:max-w-[200px]">{task.name}</span>
                         </div>
-                        <span className="text-muted-foreground text-xs">
-                          {format(parseISO(task.date), 'MMM d')}
+                        <span className="text-muted-foreground text-xs flex-shrink-0">
+                          {format(parseISO(task.date), 'MMM d, p')}
                         </span>
                       </li>
                     ))}
