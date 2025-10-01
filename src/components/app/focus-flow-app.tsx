@@ -41,8 +41,8 @@ export default function FocusFlowApp() {
   const nudgeTimestamps = useRef<number[]>([]);
   const nextNudgeIndex = useRef(0);
   
-  const maxDuration = plan === 'pro' ? 120 : 15;
-  const isFreeLimitReached = plan === 'free' && todaysSessionCount >= 5;
+  const maxDuration = plan === 'pro' ? 120 : 60;//make 60 to 15 when pro-free feauture is live.
+  const isFreeLimitReached = plan === 'free' && todaysSessionCount >= 100;//make 100 to 5 when pro-free feauture is live.
 
   useEffect(() => {
     if (settings.duration > maxDuration) {
