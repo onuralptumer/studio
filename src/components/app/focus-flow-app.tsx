@@ -245,7 +245,7 @@ export default function FocusFlowApp() {
   return (
     <div className="flex flex-col min-h-screen">
       <AppHeader />
-      <main className="flex-grow flex items-center justify-center p-4 sm:p-8 pb-40">
+      <main className="flex-grow flex justify-center p-4 sm:p-8 pb-40">
         <div className="flex flex-col items-center gap-8 w-full">
           {renderContent()}
           {plan === 'free' && (
