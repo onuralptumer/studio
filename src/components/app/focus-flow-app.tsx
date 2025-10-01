@@ -255,7 +255,7 @@ export default function FocusFlowApp() {
           )}
         </div>
       </main>
-      <footer className="fixed bottom-0 left-0 right-0 p-4 flex justify-center">
+      <footer className="fixed bottom-0 left-0 right-0 p-4 flex justify-center z-50">
         <MusicPlayer isPlayingOverride={session.appState !== 'finished'} />
       </footer>
     </div>
