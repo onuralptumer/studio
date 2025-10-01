@@ -14,13 +14,13 @@ export const AdsenseAd = () => {
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
     } catch (err) {
-      // The error is often benign, resulting from fast re-renders.
+      // The error is often benign, resulting from fast re-renders or ad blockers.
       // console.error(err);
     }
   }, []);
 
   return (
-    <div className="w-full text-center py-4">
+    <div className="w-full text-center">
         <ins
             className="adsbygoogle"
             style={{ display: 'block' }}

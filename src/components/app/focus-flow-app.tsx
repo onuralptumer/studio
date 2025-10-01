@@ -213,17 +213,14 @@ export default function FocusFlowApp() {
       case 'paused':
         const progress = ((settings.duration * 60 - timeLeft) / (settings.duration * 60)) * 100;
         return (
-          <div className="flex flex-col items-center">
-            <FocusBubble
-              task={session.currentTask}
-              progress={progress}
-              isPaused={session.appState === 'paused'}
-              onTogglePause={handlePauseToggle}
-              onStop={finishSession}
-              timeLeft={formatTime(timeLeft)}
-            />
-            {plan === 'free' && <AdsenseAd key={session.sessionEndTime} />}
-          </div>
+          <FocusBubble
+            task={session.currentTask}
+            progress={progress}
+            isPaused={session.appState === 'paused'}
+            onTogglePause={handlePauseToggle}
+            onStop={finishSession}
+            timeLeft={formatTime(timeLeft)}
+          />
         );
       case 'finished':
         return (
@@ -249,7 +246,14 @@ export default function FocusFlowApp() {
     <div className="flex flex-col min-h-screen">
       <AppHeader />
       <main className="flex-grow flex items-center justify-center p-4 sm:p-8">
-        {renderContent()}
+        <div className="flex flex-col items-center gap-8 w-full">
+          {renderContent()}
+          {plan === 'free' && (
+            <div className="w-full max-w-lg pt-4">
+              <AdsenseAd key={session.sessionEndTime || 'idle-ad'} />
+            </div>
+          )}
+        </div>
       </main>
       <footer className="fixed bottom-0 left-0 right-0 p-4 flex justify-center">
         <MusicPlayer isPlayingOverride={session.appState !== 'finished'} />
