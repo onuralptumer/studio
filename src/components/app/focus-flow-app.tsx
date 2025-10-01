@@ -222,7 +222,7 @@ export default function FocusFlowApp() {
               onStop={finishSession}
               timeLeft={formatTime(timeLeft)}
             />
-            {plan === 'free' && <AdsenseAd />}
+            {plan === 'free' && <AdsenseAd key={session.sessionEndTime} />}
           </div>
         );
       case 'finished':

@@ -14,7 +14,8 @@ export const AdsenseAd = () => {
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
     } catch (err) {
-      console.error(err);
+      // The error is often benign, resulting from fast re-renders.
+      // console.error(err);
     }
   }, []);
 
