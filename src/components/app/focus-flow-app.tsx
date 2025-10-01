@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { useAuth } from '@/hooks/use-auth';
 import { MusicPlayer } from './music-player';
+import { AdsenseAd } from './adsense-ad';
 
 export default function FocusFlowApp() {
   const { user, loading } = useAuth();
@@ -28,7 +29,8 @@ export default function FocusFlowApp() {
     resumeFocus,
     finishSession,
     completeTask,
-    retryTask
+    retryTask,
+    plan,
   } = useFocusStore();
   const { toast } = useToast();
 
@@ -211,14 +213,17 @@ export default function FocusFlowApp() {
       case 'paused':
         const progress = ((settings.duration * 60 - timeLeft) / (settings.duration * 60)) * 100;
         return (
-          <FocusBubble
-            task={session.currentTask}
-            progress={progress}
-            isPaused={session.appState === 'paused'}
-            onTogglePause={handlePauseToggle}
-            onStop={finishSession}
-            timeLeft={formatTime(timeLeft)}
-          />
+          <div className="flex flex-col items-center">
+            <FocusBubble
+              task={session.currentTask}
+              progress={progress}
+              isPaused={session.appState === 'paused'}
+              onTogglePause={handlePauseToggle}
+              onStop={finishSession}
+              timeLeft={formatTime(timeLeft)}
+            />
+            {plan === 'free' && <AdsenseAd />}
+          </div>
         );
       case 'finished':
         return (
